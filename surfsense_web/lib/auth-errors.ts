@@ -62,6 +62,12 @@ const AUTH_ERROR_MESSAGES: AuthErrorMapping = {
 		description: "Password must meet security requirements",
 	},
 
+	// Session errors
+	session_expired: {
+		title: "Session expired",
+		description: "Your session has expired. Please sign in again",
+	},
+
 	// OAuth errors
 	access_denied: {
 		title: "Access denied",

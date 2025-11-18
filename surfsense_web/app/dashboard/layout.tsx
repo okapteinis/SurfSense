@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { baseApiService } from "@/lib/apis/base-api.service";
 
 interface DashboardLayoutProps {
 	children: React.ReactNode;
@@ -21,6 +22,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 			router.push("/login");
 			return;
 		}
+
+		// CRITICAL: Sync token with baseApiService singleton
+		// This ensures the service has the correct token on page refresh
+		// or when navigating back to dashboard (e.g., clicking logo)
+		baseApiService.setBearerToken(token);
+
 		setIsCheckingAuth(false);
 	}, [router]);
 

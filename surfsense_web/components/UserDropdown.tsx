@@ -13,6 +13,7 @@ import {
 	DropdownMenuSeparator,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { baseApiService } from "@/lib/apis/base-api.service";
 
 export function UserDropdown({
 	user,
@@ -29,7 +30,9 @@ export function UserDropdown({
 		try {
 			if (typeof window !== "undefined") {
 				localStorage.removeItem("surfsense_bearer_token");
-				router.push("/");
+				// Clear token from baseApiService singleton to prevent stale token issues
+				baseApiService.setBearerToken("");
+				router.push("/login?logout=true");
 			}
 		} catch (error) {
 			console.error("Error during logout:", error);

@@ -2,6 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { baseApiService } from "@/lib/apis/base-api.service";
 
 interface TokenHandlerProps {
 	redirectPath?: string; // Path to redirect after storing token
@@ -35,7 +36,11 @@ const TokenHandler = ({
 			try {
 				// Store token in localStorage
 				localStorage.setItem(storageKey, token);
-				// console.log(`Token stored in localStorage with key: ${storageKey}`);
+
+				// CRITICAL: Sync token with baseApiService singleton
+				// This fixes the session loss issue where the service
+				// has a stale empty token from initialization
+				baseApiService.setBearerToken(token);
 
 				// Redirect to specified path
 				router.push(redirectPath);
