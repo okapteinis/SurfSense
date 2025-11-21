@@ -83,13 +83,14 @@ set -e
 
 # Configuration file path
 CONFIG_PATH="$(dirname "$0")/.config"
+TEMPLATE_PATH="$(dirname "$CONFIG_PATH")/.config.template"
 
 # Load configuration or exit with error
 if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
 else
     echo "ERROR: Configuration file not found: $CONFIG_PATH" >&2
-    echo "Please copy scripts/.config.template to $CONFIG_PATH and configure your VPS details." >&2
+    echo "Please copy $TEMPLATE_PATH to $CONFIG_PATH and configure your VPS details." >&2
     exit 1
 fi
 
@@ -111,13 +112,14 @@ cat > scripts/monitor-services.sh << 'EOFSCRIPT'
 
 # Configuration file path
 CONFIG_PATH="$(dirname "$0")/.config"
+TEMPLATE_PATH="$(dirname "$CONFIG_PATH")/.config.template"
 
 # Load configuration or exit with error
 if [ -f "$CONFIG_PATH" ]; then
     source "$CONFIG_PATH"
 else
     echo "ERROR: Configuration file not found: $CONFIG_PATH" >&2
-    echo "Please copy scripts/.config.template to $CONFIG_PATH and configure your VPS details." >&2
+    echo "Please copy $TEMPLATE_PATH to $CONFIG_PATH and configure your VPS details." >&2
     exit 1
 fi
 
