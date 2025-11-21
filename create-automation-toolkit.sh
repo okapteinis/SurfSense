@@ -83,7 +83,7 @@ set -e
 
 # Configuration file path
 CONFIG_PATH="$(dirname "$0")/.config"
-TEMPLATE_PATH="$(dirname "$CONFIG_PATH")/.config.template"
+TEMPLATE_PATH="${CONFIG_PATH}.template"
 
 # Load configuration or exit with error
 if [ -f "$CONFIG_PATH" ]; then
@@ -112,7 +112,7 @@ cat > scripts/monitor-services.sh << 'EOFSCRIPT'
 
 # Configuration file path
 CONFIG_PATH="$(dirname "$0")/.config"
-TEMPLATE_PATH="$(dirname "$CONFIG_PATH")/.config.template"
+TEMPLATE_PATH="${CONFIG_PATH}.template"
 
 # Load configuration or exit with error
 if [ -f "$CONFIG_PATH" ]; then
