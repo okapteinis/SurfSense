@@ -136,51 +136,49 @@ const HomePage = () => {
 
 			//Main Cleanup COde
 			const tabs = await browser.tabs.query({});
-			{
-				//Get Active Tabs Ids
-				let actives = tabs.map((tab) => {
-					if (tab.id) {
-						return tab.id;
-					}
-				});
+			//Get Active Tabs Ids
+			let actives = tabs.map((tab) => {
+				if (tab.id) {
+					return tab.id;
+				}
+			});
 
-				actives = actives.filter((item: any) => item);
+			actives = actives.filter((item: any) => item);
 
-				//Only retain which is still active
-				const newHistory = webHistory.webhistory.map((element: any) => {
-					//@ts-ignore
-					if (actives.includes(element.tabsessionId)) {
-						return element;
-					}
-				});
+			//Only retain which is still active
+			const newHistory = webHistory.webhistory.map((element: any) => {
+				//@ts-ignore
+				if (actives.includes(element.tabsessionId)) {
+					return element;
+				}
+			});
 
-				const newUrlQueue = urlQueue.urlQueueList.map((element: any) => {
-					//@ts-ignore
-					if (actives.includes(element.tabsessionId)) {
-						return element;
-					}
-				});
+			const newUrlQueue = urlQueue.urlQueueList.map((element: any) => {
+				//@ts-ignore
+				if (actives.includes(element.tabsessionId)) {
+					return element;
+				}
+			});
 
-				const newTimeQueue = timeQueue.timeQueueList.map((element: any) => {
-					//@ts-ignore
-					if (actives.includes(element.tabsessionId)) {
-						return element;
-					}
-				});
+			const newTimeQueue = timeQueue.timeQueueList.map((element: any) => {
+				//@ts-ignore
+				if (actives.includes(element.tabsessionId)) {
+					return element;
+				}
+			});
 
-				await storage.set("webhistory", { webhistory: newHistory.filter((item: any) => item) });
-				await storage.set("urlQueueList", {
-					urlQueueList: newUrlQueue.filter((item: any) => item),
-				});
-				await storage.set("timeQueueList", {
-					timeQueueList: newTimeQueue.filter((item: any) => item),
-				});
-				toast({
-					title: "History store cleared",
-					description: "Inactive history sessions have been removed",
-					variant: "destructive",
-				});
-			}
+			await storage.set("webhistory", { webhistory: newHistory.filter((item: any) => item) });
+			await storage.set("urlQueueList", {
+				urlQueueList: newUrlQueue.filter((item: any) => item),
+			});
+			await storage.set("timeQueueList", {
+				timeQueueList: newTimeQueue.filter((item: any) => item),
+			});
+			toast({
+				title: "History store cleared",
+				description: "Inactive history sessions have been removed",
+				variant: "destructive",
+			});
 		} catch (error) {
 			console.log(error);
 		}
@@ -188,10 +186,9 @@ const HomePage = () => {
 
 	async function saveCurrSnapShot(): Promise<void> {
 		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-		{
-			const storage = new Storage({ area: "local" });
-			const tab = tabs[0];
-			if (tab.id) {
+		const storage = new Storage({ area: "local" });
+		const tab = tabs[0];
+		if (tab.id) {
 				const tabId: number = tab.id;
 				const result = await browser.scripting.executeScript({
 					// @ts-ignore
@@ -252,7 +249,6 @@ const HomePage = () => {
 					description: `Captured: ${toPushInTabHistory.title}`,
 				});
 			}
-		});
 	}
 
 	const saveDatamessage = async () => {

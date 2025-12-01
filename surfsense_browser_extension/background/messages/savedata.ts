@@ -18,10 +18,9 @@ const clearMemory = async () => {
 
 		//Main Cleanup COde
 		const tabs = await browser.tabs.query({});
-		{
-			//Get Active Tabs Ids
-			// console.log("Event Tabs",tabs)
-			let actives = tabs.map((tab) => {
+		//Get Active Tabs Ids
+		// console.log("Event Tabs",tabs)
+		let actives = tabs.map((tab) => {
 				if (tab.id) {
 					return tab.id;
 				}
@@ -60,7 +59,6 @@ const clearMemory = async () => {
 			await storage.set("timeQueueList", {
 				timeQueueList: newTimeQueue.filter((item: any) => item),
 			});
-		}
 	} catch (error) {
 		console.log(error);
 	}
