@@ -23,8 +23,7 @@ global.Node = {
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
 	try {
 		const tabs = await browser.tabs.query({ active: true, currentWindow: true });
-		{
-			const storage = new Storage({ area: "local" });
+		const storage = new Storage({ area: "local" });
 			const tab = tabs[0];
 			if (tab.id) {
 				const tabId: number = tab.id;

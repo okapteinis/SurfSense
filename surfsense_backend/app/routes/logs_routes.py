@@ -363,32 +363,35 @@ async def retry_log(
                 detail="Cannot retry task: user_id not found in log metadata"
             )
 
-        url = db_log.log_metadata.get('url')
-        file_path = db_log.log_metadata.get('file_path')
-        filename = db_log.log_metadata.get('filename')
+        # Task mapping for URL-based tasks (process_crawled_url, process_youtube_video)
+        URL_BASED_TASKS = {
+            'process_crawled_url': process_crawled_url_task,
+            'process_youtube_video': process_youtube_video_task,
+        }
 
         # Resubmit task based on task type
-        if task_name == 'process_crawled_url':
+        if task_name in URL_BASED_TASKS:
+            url = db_log.log_metadata.get('url')
             if not url:
                 raise HTTPException(
                     status_code=400,
                     detail="Cannot retry task: URL not found in log metadata"
                 )
-            process_crawled_url_task.delay(url, db_log.search_space_id, user_id)
-
-        elif task_name == 'process_youtube_video':
-            if not url:
-                raise HTTPException(
-                    status_code=400,
-                    detail="Cannot retry task: URL not found in log metadata"
-                )
-            process_youtube_video_task.delay(url, db_log.search_space_id, user_id)
+            URL_BASED_TASKS[task_name].delay(url, db_log.search_space_id, user_id)
 
         elif task_name == 'process_file_upload':
-            if not file_path or not filename:
+            file_path = db_log.log_metadata.get('file_path')
+            filename = db_log.log_metadata.get('filename')
+
+            if not file_path:
                 raise HTTPException(
                     status_code=400,
-                    detail="Cannot retry task: file_path or filename not found in log metadata"
+                    detail="Cannot retry task: file_path not found in log metadata"
+                )
+            if not filename:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Cannot retry task: filename not found in log metadata"
                 )
             process_file_upload_task.delay(file_path, filename, db_log.search_space_id, user_id)
 

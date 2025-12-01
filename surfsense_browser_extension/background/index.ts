@@ -3,7 +3,7 @@ import { Storage } from "@plasmohq/storage";
 import { getRenderedHtml, initQueues, initWebHistory } from "~utils/commons";
 import type { WebHistory } from "~utils/interfaces";
 
-browser.tabs.onCreated.addListener(async (tab: any) => {
+browser.tabs.onCreated.addListener(async (tab: browser.Tabs.Tab) => {
 	try {
 		await initWebHistory(tab.id);
 		await initQueues(tab.id);
@@ -12,7 +12,7 @@ browser.tabs.onCreated.addListener(async (tab: any) => {
 	}
 });
 
-browser.tabs.onUpdated.addListener(async (tabId: number, changeInfo: any, tab: any) => {
+browser.tabs.onUpdated.addListener(async (tabId: number, changeInfo: browser.Tabs.OnUpdatedChangeInfoType, tab: browser.Tabs.Tab) => {
 	if (changeInfo.status === "complete" && tab.url) {
 		const storage = new Storage({ area: "local" });
 		await initWebHistory(tab.id);
@@ -46,7 +46,7 @@ browser.tabs.onUpdated.addListener(async (tabId: number, changeInfo: any, tab: a
 	}
 });
 
-browser.tabs.onRemoved.addListener(async (tabId: number, removeInfo: object) => {
+browser.tabs.onRemoved.addListener(async (tabId: number, removeInfo: browser.Tabs.OnRemovedRemoveInfoType) => {
 	const storage = new Storage({ area: "local" });
 	const urlQueueListObj: any = await storage.get("urlQueueList");
 	const timeQueueListObj: any = await storage.get("timeQueueList");
