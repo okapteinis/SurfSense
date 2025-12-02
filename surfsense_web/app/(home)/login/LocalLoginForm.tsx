@@ -80,7 +80,7 @@ export function LocalLoginForm() {
 
 			// Small delay to show success message
 			setTimeout(() => {
-				router.push(`/auth/callback?token=${data.access_token}`);
+				router.push('/dashboard');
 			}, 500);
 		} catch (err) {
 			if (err instanceof ValidationError) {
@@ -152,7 +152,7 @@ export function LocalLoginForm() {
 
 			// Small delay to show success message
 			setTimeout(() => {
-				router.push(`/auth/callback?token=${data.access_token}`);
+				router.push('/dashboard');
 			}, 500);
 		} catch (err) {
 			if (err instanceof ValidationError) {
