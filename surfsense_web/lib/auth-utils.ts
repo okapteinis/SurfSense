@@ -1,21 +1,14 @@
 /**
  * Authentication utility functions for session management
+ * SECURITY: Uses HttpOnly cookies for authentication - no localStorage tokens
  */
-
-import { baseApiService } from "./apis/base-api.service";
-import { AUTH_TOKEN_KEY } from "./constants";
 
 /**
- * Handle session expiration by clearing tokens and redirecting to login
- * This centralizes the 401 handling logic to avoid code duplication
+ * Handle session expiration by redirecting to login
+ * SECURITY: With HttpOnly cookies, no client-side token management needed
+ * The browser automatically handles cookie cleanup
  */
 export function handleSessionExpired(): never {
-	// Clear token from localStorage
-	localStorage.removeItem(AUTH_TOKEN_KEY);
-
-	// Clear token from baseApiService singleton to prevent stale auth state
-	baseApiService.setBearerToken("");
-
 	// Redirect to login with error parameter for user feedback
 	window.location.href = "/login?error=session_expired";
 

@@ -109,7 +109,7 @@ class EncryptionService:
             # Try to decrypt - if it works, it's encrypted
             self._fernet.decrypt(value.encode())
             return True
-        except Exception:
+        except InvalidToken:
             return False
 
 
