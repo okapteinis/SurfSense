@@ -616,7 +616,7 @@ async def login_with_2fa(
 
     # SECURITY: Set HttpOnly cookie and return token for backward compatibility
     response = JSONResponse({"access_token": token, "token_type": "bearer", "requires_2fa": False})
-    cookie_transport._set_login_cookie(response, token)
+    cookie_transport.set_login_cookie(response, token)
     return response
 
 
@@ -761,5 +761,5 @@ async def verify_2fa_login(
 
     # SECURITY: Set HttpOnly cookie and return token for backward compatibility
     response = JSONResponse({"access_token": token, "token_type": "bearer"})
-    cookie_transport._set_login_cookie(response, token)
+    cookie_transport.set_login_cookie(response, token)
     return response

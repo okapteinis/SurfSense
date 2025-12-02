@@ -80,6 +80,19 @@ class CustomCookieTransport(CookieTransport):
             response = JSONResponse({"success": True, "message": "Login successful"})
         return self._set_login_cookie(response, token)
     
+    def set_login_cookie(self, response: Response, token: str) -> Response:
+        """
+        Public method to set the login cookie on a response.
+        
+        Args:
+            response: The Response object to attach the cookie to
+            token: The JWT token to store in the cookie
+            
+        Returns:
+            The response with the cookie attached
+        """
+        return self._set_login_cookie(response, token)
+    
     async def get_logout_response(self) -> Response:
         response = JSONResponse({"success": True, "message": "Logout successful"})
         return self._set_logout_cookie(response)
