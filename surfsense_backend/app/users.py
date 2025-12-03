@@ -77,7 +77,7 @@ class CustomCookieTransport(CookieTransport):
             response = RedirectResponse(config.OAUTH_REDIRECT_URL, status_code=302)
         else:
             # For regular login, return JSON success
-            response = JSONResponse({"success": True, "message": "Login successful"})
+            response = JSONResponse({"access_token": token, "token_type": "bearer"})
         return self._set_login_cookie(response, token)
     
     def set_login_cookie(self, response: Response, token: str) -> Response:
