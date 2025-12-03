@@ -198,6 +198,7 @@ class Config:
 
     # Auth
     AUTH_TYPE = os.getenv("AUTH_TYPE")
+    COOKIE_SECURE = os.getenv("COOKIE_SECURE", "FALSE").upper() == "TRUE"  # Secure cookies require HTTPS
     REGISTRATION_ENABLED = os.getenv("REGISTRATION_ENABLED", "TRUE").upper() == "TRUE"
 
     # CORS Configuration
