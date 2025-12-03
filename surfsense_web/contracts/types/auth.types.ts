@@ -7,10 +7,10 @@ export const loginRequest = z.object({
 });
 
 export const loginResponse = z.object({
-	access_token: z.string().optional(),
-	token_type: z.string().optional(),
+	access_token: z.string().nullable().optional(),
+	token_type: z.string().nullable().optional(),
 	requires_2fa: z.boolean().optional(),
-	temporary_token: z.string().optional(),
+	temporary_token: z.string().nullable().optional(),
 });
 
 export const verify2FARequest = z.object({

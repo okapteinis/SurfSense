@@ -67,9 +67,6 @@ export function LocalLoginForm() {
 			}
 
 			// No 2FA required - proceed with normal login
-			if (!data.access_token) {
-				throw new Error("No access token received");
-			}
 
 			// Success toast
 			toast.success(t("login_success"), {

@@ -102,7 +102,7 @@ cookie_transport = CustomCookieTransport(
     cookie_max_age=3600,  # 1 hour
     cookie_name="surfsense_auth",
     cookie_httponly=True,  # SECURITY: Prevents JavaScript access (XSS protection)
-    cookie_secure=False,     # NOTE: False because backend is behind HTTPS proxy
+    cookie_secure=True,      # SECURITY: Requires HTTPS (even behind reverse proxy)
     cookie_samesite="lax",  # SECURITY: CSRF protection
 )
 
