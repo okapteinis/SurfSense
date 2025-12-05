@@ -120,7 +120,7 @@ async def _process_extension_document(
             raise
 
 
-@celery_app.task(name="process_crawled_url", bind=True)
+@celery_app.task(name="process_crawled_url", bind=True, soft_time_limit=1200, time_limit=1500)
 def process_crawled_url_task(self, url: str, search_space_id: int, user_id: str):
     """
     Celery task to process crawled URL.
@@ -185,7 +185,7 @@ async def _process_crawled_url(url: str, search_space_id: int, user_id: str):
             raise
 
 
-@celery_app.task(name="process_youtube_video", bind=True)
+@celery_app.task(name="process_youtube_video", bind=True, soft_time_limit=1800, time_limit=2100)
 def process_youtube_video_task(self, url: str, search_space_id: int, user_id: str):
     """
     Celery task to process YouTube video.
@@ -250,7 +250,7 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
             raise
 
 
-@celery_app.task(name="process_file_upload", bind=True)
+@celery_app.task(name="process_file_upload", bind=True, soft_time_limit=3600, time_limit=4200)
 def process_file_upload_task(
     self, file_path: str, filename: str, search_space_id: int, user_id: str
 ):

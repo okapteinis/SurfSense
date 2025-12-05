@@ -2,7 +2,6 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { baseApiService } from "@/lib/apis/base-api.service";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface TokenHandlerProps {
@@ -37,10 +36,6 @@ const TokenHandler = ({
 			try {
 				// Store token in localStorage
 				localStorage.setItem(storageKey, token);
-
-				// Update the baseApiService singleton with the new token
-				// This ensures subsequent API calls use the correct token
-				baseApiService.setBearerToken(token);
 
 				// Redirect to specified path
 				router.push(redirectPath);
