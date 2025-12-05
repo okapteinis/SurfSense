@@ -3,10 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { AnnouncementBanner } from "@/components/announcement-banner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { baseApiService } from "@/lib/apis/base-api.service";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 import { useAuth } from "@/hooks/use-auth";
-import { useEffect } from "react";
 
 interface DashboardLayoutProps {
 	children: React.ReactNode;
@@ -14,16 +11,6 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
 	const { isLoading, isAuthenticated } = useAuth();
-
-	// Sync token with baseApiService when authenticated
-	useEffect(() => {
-		if (isAuthenticated && typeof window !== "undefined") {
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
-			if (token) {
-				baseApiService.setBearerToken(token);
-			}
-		}
-	}, [isAuthenticated]);
 
 	// Show loading screen while verifying authentication
 	if (isLoading) {

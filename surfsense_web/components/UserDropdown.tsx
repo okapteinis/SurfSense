@@ -3,7 +3,6 @@
 import { BadgeCheck, LogOut, Settings, Shield, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { baseApiService } from "@/lib/apis/base-api.service";
 import { AUTH_TOKEN_KEY } from "@/lib/constants";
 import { CustomUser } from "@/contracts/types";
 import { Button } from "@/components/ui/button";
@@ -29,8 +28,6 @@ export function UserDropdown({ user, isAdmin = false }: UserDropdownProps) {
 		try {
 			if (typeof window !== "undefined") {
 				localStorage.removeItem(AUTH_TOKEN_KEY);
-				// Clear the baseApiService token to prevent stale auth state
-				baseApiService.setBearerToken("");
 				router.push("/");
 			}
 		} catch (error) {
