@@ -16,6 +16,18 @@ from app.tasks.document_processors import (
 
 logger = logging.getLogger(__name__)
 
+# Celery task timeout constants (in seconds)
+# Soft timeout triggers a SoftTimeLimitExceeded exception,
+# Hard timeout kills the task
+CRAWL_URL_SOFT_TIMEOUT = 1200  # 20 minutes
+CRAWL_URL_HARD_TIMEOUT = 1500  # 25 minutes
+
+YOUTUBE_VIDEO_SOFT_TIMEOUT = 1800  # 30 minutes
+YOUTUBE_VIDEO_HARD_TIMEOUT = 2100  # 35 minutes
+
+FILE_UPLOAD_SOFT_TIMEOUT = 3600  # 60 minutes
+FILE_UPLOAD_HARD_TIMEOUT = 4200  # 70 minutes
+
 
 def get_celery_session_maker():
     """
@@ -120,7 +132,7 @@ async def _process_extension_document(
             raise
 
 
-@celery_app.task(name="process_crawled_url", bind=True, soft_time_limit=1200, time_limit=1500)
+@celery_app.task(name="process_crawled_url", bind=True, soft_time_limit=CRAWL_URL_SOFT_TIMEOUT, time_limit=CRAWL_URL_HARD_TIMEOUT)
 def process_crawled_url_task(self, url: str, search_space_id: int, user_id: str):
     """
     Celery task to process crawled URL.
@@ -185,7 +197,7 @@ async def _process_crawled_url(url: str, search_space_id: int, user_id: str):
             raise
 
 
-@celery_app.task(name="process_youtube_video", bind=True, soft_time_limit=1800, time_limit=2100)
+@celery_app.task(name="process_youtube_video", bind=True, soft_time_limit=YOUTUBE_VIDEO_SOFT_TIMEOUT, time_limit=YOUTUBE_VIDEO_HARD_TIMEOUT)
 def process_youtube_video_task(self, url: str, search_space_id: int, user_id: str):
     """
     Celery task to process YouTube video.
@@ -250,7 +262,7 @@ async def _process_youtube_video(url: str, search_space_id: int, user_id: str):
             raise
 
 
-@celery_app.task(name="process_file_upload", bind=True, soft_time_limit=3600, time_limit=4200)
+@celery_app.task(name="process_file_upload", bind=True, soft_time_limit=FILE_UPLOAD_SOFT_TIMEOUT, time_limit=FILE_UPLOAD_HARD_TIMEOUT)
 def process_file_upload_task(
     self, file_path: str, filename: str, search_space_id: int, user_id: str
 ):
