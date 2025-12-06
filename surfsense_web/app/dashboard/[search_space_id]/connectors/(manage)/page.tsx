@@ -95,6 +95,40 @@ export default function ConnectorsPage() {
 	const [startDate, setStartDate] = useState<Date | undefined>(undefined);
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
+	/**
+	 * Determines which dates should be disabled for start date picker
+	 * Google Calendar connector allows future dates, other connectors only allow past dates
+	 */
+	const getDisabledStartDates = (date: Date) => {
+		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
+
+		switch (connector?.connector_type) {
+			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
+				// Allow future dates for Google Calendar
+				return endDate ? date > endDate : false;
+			default:
+				// Other connectors: only past dates
+				return date > today || (endDate ? date > endDate : false);
+		}
+	};
+
+	/**
+	 * Determines which dates should be disabled for end date picker
+	 * Google Calendar connector allows future dates, other connectors only allow past dates
+	 */
+	const getDisabledEndDates = (date: Date) => {
+		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
+
+		switch (connector?.connector_type) {
+			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
+				// Allow future dates for Google Calendar
+				return startDate ? date < startDate : false;
+			default:
+				// Other connectors: only past dates
+				return date > today || (startDate ? date < startDate : false);
+		}
+	};
+
 	// Periodic indexing state
 	const [periodicDialogOpen, setPeriodicDialogOpen] = useState(false);
 	const [selectedConnectorForPeriodic, setSelectedConnectorForPeriodic] = useState<number | null>(
@@ -500,6 +534,7 @@ export default function ConnectorsPage() {
 											mode="single"
 											selected={startDate}
 											onSelect={setStartDate}
+											disabled={getDisabledStartDates}
 											initialFocus
 										/>
 									</PopoverContent>
@@ -522,7 +557,13 @@ export default function ConnectorsPage() {
 										</Button>
 									</PopoverTrigger>
 									<PopoverContent className="w-auto p-0" align="start">
-										<Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+										<Calendar
+											mode="single"
+											selected={endDate}
+											onSelect={setEndDate}
+											disabled={getDisabledEndDates}
+											initialFocus
+										/>
 									</PopoverContent>
 								</Popover>
 							</div>

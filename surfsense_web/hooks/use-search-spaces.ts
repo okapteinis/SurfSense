@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
+import { authenticatedFetch } from "@/lib/auth-utils";
 
 interface SearchSpace {
 	id: number;
@@ -22,12 +22,9 @@ export function useSearchSpaces() {
 		const fetchSearchSpaces = async () => {
 			try {
 				setLoading(true);
-				const response = await fetch(
+				const response = await authenticatedFetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
 					{
-						headers: {
-							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-						},
 						method: "GET",
 					}
 				);
@@ -55,12 +52,9 @@ export function useSearchSpaces() {
 	const refreshSearchSpaces = async () => {
 		setLoading(true);
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces`,
 				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-					},
 					method: "GET",
 				}
 			);
