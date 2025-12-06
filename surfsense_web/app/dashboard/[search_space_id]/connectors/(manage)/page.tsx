@@ -13,7 +13,7 @@ import {
 import { motion } from "motion/react";
 import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { toast } from "sonner";
 import {
 	AlertDialog,
@@ -96,38 +96,51 @@ export default function ConnectorsPage() {
 	const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
 	/**
+	 * Memoized selected connector lookup
+	 * Cached to avoid repeated array searches during calendar rendering
+	 */
+	const selectedConnector = useMemo(
+		() => connectors.find((c) => c.id === selectedConnectorForIndexing),
+		[connectors, selectedConnectorForIndexing]
+	);
+
+	/**
 	 * Determines which dates should be disabled for start date picker
 	 * Google Calendar connector allows future dates, other connectors only allow past dates
+	 * Memoized to prevent unnecessary re-renders during calendar interaction
 	 */
-	const getDisabledStartDates = (date: Date) => {
-		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
-
-		switch (connector?.connector_type) {
-			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
-				// Allow future dates for Google Calendar
-				return endDate ? date > endDate : false;
-			default:
-				// Other connectors: only past dates
-				return date > today || (endDate ? date > endDate : false);
-		}
-	};
+	const getDisabledStartDates = useCallback(
+		(date: Date) => {
+			switch (selectedConnector?.connector_type) {
+				case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
+					// Allow future dates for Google Calendar
+					return endDate ? date > endDate : false;
+				default:
+					// Other connectors: only past dates
+					return date > today || (endDate ? date > endDate : false);
+			}
+		},
+		[selectedConnector, endDate, today]
+	);
 
 	/**
 	 * Determines which dates should be disabled for end date picker
 	 * Google Calendar connector allows future dates, other connectors only allow past dates
+	 * Memoized to prevent unnecessary re-renders during calendar interaction
 	 */
-	const getDisabledEndDates = (date: Date) => {
-		const connector = connectors.find((c) => c.id === selectedConnectorForIndexing);
-
-		switch (connector?.connector_type) {
-			case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
-				// Allow future dates for Google Calendar
-				return startDate ? date < startDate : false;
-			default:
-				// Other connectors: only past dates
-				return date > today || (startDate ? date < startDate : false);
-		}
-	};
+	const getDisabledEndDates = useCallback(
+		(date: Date) => {
+			switch (selectedConnector?.connector_type) {
+				case EnumConnectorName.GOOGLE_CALENDAR_CONNECTOR:
+					// Allow future dates for Google Calendar
+					return startDate ? date < startDate : false;
+				default:
+					// Other connectors: only past dates
+					return date > today || (startDate ? date < startDate : false);
+			}
+		},
+		[selectedConnector, startDate, today]
+	);
 
 	// Periodic indexing state
 	const [periodicDialogOpen, setPeriodicDialogOpen] = useState(false);
