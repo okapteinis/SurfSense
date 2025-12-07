@@ -5,6 +5,7 @@ This module provides functions to validate URLs before making HTTP requests,
 preventing attacks against internal services and localhost.
 """
 
+import asyncio
 import ipaddress
 import re
 import socket
@@ -57,7 +58,7 @@ def is_ip_blocked(ip_str: str) -> bool:
         return False
 
 
-def resolve_and_check_hostname(hostname: str) -> None:
+async def resolve_and_check_hostname(hostname: str) -> None:
     """
     Resolve hostname to IP addresses and check if any resolve to blocked ranges.
 
@@ -71,9 +72,10 @@ def resolve_and_check_hostname(hostname: str) -> None:
         HTTPException: If hostname resolves to a blocked IP address
     """
     try:
-        # Resolve hostname to IP addresses (both IPv4 and IPv6)
-        # getaddrinfo returns a list of tuples: (family, type, proto, canonname, sockaddr)
-        addr_info = socket.getaddrinfo(hostname, None)
+        # Resolve hostname to IP addresses (both IPv4 and IPv6) using async DNS resolution
+        # This prevents blocking the event loop
+        loop = asyncio.get_event_loop()
+        addr_info = await loop.getaddrinfo(hostname, None)
 
         for family, _, _, _, sockaddr in addr_info:
             # Extract IP address from sockaddr tuple
@@ -104,7 +106,7 @@ def resolve_and_check_hostname(hostname: str) -> None:
         ) from e
 
 
-def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
+async def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
     """
     Validate that a URL is safe to make requests to, preventing SSRF attacks.
 
@@ -194,7 +196,7 @@ def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
             # If we get here, hostname is already an IP (already checked above)
         except ValueError:
             # Hostname is a domain name, resolve it to check IPs
-            resolve_and_check_hostname(hostname)
+            await resolve_and_check_hostname(hostname)
 
     # Additional validation: check for URL encoding tricks
     if "%" in url:
@@ -204,12 +206,12 @@ def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
         decoded_url = unquote(url)
         if decoded_url != url:
             # Recursively validate the decoded URL
-            return validate_url_safe_for_ssrf(decoded_url, allow_private)
+            return await validate_url_safe_for_ssrf(decoded_url, allow_private)
 
     return url
 
 
-def validate_connector_url(url: str, connector_type: str = "external") -> str:
+async def validate_connector_url(url: str, connector_type: str = "external") -> str:
     """
     Validate URL for connector services.
 
@@ -227,7 +229,7 @@ def validate_connector_url(url: str, connector_type: str = "external") -> str:
         HTTPException: If URL is unsafe
     """
     try:
-        return validate_url_safe_for_ssrf(url, allow_private=False)
+        return await validate_url_safe_for_ssrf(url, allow_private=False)
     except HTTPException as e:
         # Re-raise with connector-specific context
         raise HTTPException(

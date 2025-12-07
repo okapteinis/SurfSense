@@ -75,7 +75,7 @@ async def add_mastodon_connector(
         instance_url = f"https://{instance_url}"
 
     # Validate URL to prevent SSRF attacks
-    instance_url = validate_connector_url(instance_url, connector_type="Mastodon")
+    instance_url = await validate_connector_url(instance_url, connector_type="Mastodon")
 
     # Test connection to Mastodon
     mastodon_client = MastodonConnector(
@@ -155,7 +155,7 @@ async def test_mastodon_connection(
         instance_url = f"https://{instance_url}"
 
     # Validate URL to prevent SSRF attacks
-    instance_url = validate_connector_url(instance_url, connector_type="Mastodon")
+    instance_url = await validate_connector_url(instance_url, connector_type="Mastodon")
 
     # Test connection
     mastodon_client = MastodonConnector(
