@@ -96,11 +96,10 @@ async def resolve_and_check_hostname(hostname: str) -> list[str]:
                     detail=f"Hostname {hostname} resolves to blocked IP address {ip_str}",
                 )
 
-            # Collect validated IPs (avoid duplicates)
-            if ip_str not in validated_ips:
-                validated_ips.append(ip_str)
+            validated_ips.append(ip_str)
 
-        return validated_ips
+        # Remove duplicates while preserving order using dict.fromkeys() - O(N) instead of O(N²)
+        return list(dict.fromkeys(validated_ips))
 
     except socket.gaierror:
         # DNS resolution failed - hostname doesn't exist
@@ -239,30 +238,31 @@ async def validate_url_safe_for_ssrf(
     return url, validated_ips
 
 
-async def validate_connector_url(url: str, connector_type: str = "external") -> str:
+async def validate_connector_url(
+    url: str, connector_type: str = "external"
+) -> tuple[str, list[str] | None]:
     """
     Validate URL for connector services.
 
-    This is a convenience wrapper around validate_url_safe_for_ssrf
-    with connector-specific error messages.
-
-    Note: This function only returns the validated URL for backwards compatibility.
-    If you need the validated IP addresses to prevent TOCTOU attacks, call
-    validate_url_safe_for_ssrf() directly.
+    This is a wrapper around validate_url_safe_for_ssrf with connector-specific
+    error messages. Returns both the validated URL and the validated IP addresses
+    to prevent TOCTOU vulnerabilities.
 
     Args:
         url: The URL to validate
         connector_type: Type of connector (for error messages)
 
     Returns:
-        The validated URL
+        Tuple of (validated_url, validated_ips):
+            - validated_url: The validated URL string
+            - validated_ips: List of safe IP addresses to use for requests,
+                           or None if hostname is already an IP address
 
     Raises:
         HTTPException: If URL is unsafe
     """
     try:
-        validated_url, _ = await validate_url_safe_for_ssrf(url, allow_private=False)
-        return validated_url
+        return await validate_url_safe_for_ssrf(url, allow_private=False)
     except HTTPException as e:
         # Re-raise with connector-specific context
         raise HTTPException(

@@ -36,7 +36,7 @@ async def _validate_feed_urls(feed_urls: list[str]) -> list[str]:
     validated_urls = []
     for url in feed_urls:
         try:
-            validated_url = await validate_connector_url(url, connector_type="RSS Feed")
+            validated_url, _ = await validate_connector_url(url, connector_type="RSS Feed")
             validated_urls.append(validated_url)
         except HTTPException as e:
             raise HTTPException(
@@ -97,7 +97,7 @@ async def validate_feed(
     Checks if the feed is accessible, parseable, and has content.
     """
     # Validate URL to prevent SSRF attacks
-    feed_url = await validate_connector_url(str(request.url), connector_type="RSS Feed")
+    feed_url, _ = await validate_connector_url(str(request.url), connector_type="RSS Feed")
 
     connector = RSSConnector(feed_urls=[])
     result = await connector.validate_feed(feed_url)
@@ -166,7 +166,7 @@ async def validate_multiple_feeds(
     validated_urls = []
     for url in feed_urls:
         try:
-            validated_url = await validate_connector_url(url, connector_type="RSS Feed")
+            validated_url, _ = await validate_connector_url(url, connector_type="RSS Feed")
             validated_urls.append(validated_url)
         except HTTPException:
             # If URL validation fails, skip it (will be reported as invalid in results)

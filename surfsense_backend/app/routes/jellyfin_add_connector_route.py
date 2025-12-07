@@ -60,7 +60,7 @@ async def test_jellyfin_connection(
             server_url = f"http://{server_url}"
 
         # Validate URL to prevent SSRF attacks
-        server_url = await validate_connector_url(server_url, connector_type="Jellyfin")
+        server_url, _ = await validate_connector_url(server_url, connector_type="Jellyfin")
 
         # Initialize connector
         jellyfin_client = JellyfinConnector(
@@ -145,7 +145,7 @@ async def add_jellyfin_connector(
             server_url = f"http://{server_url}"
 
         # Validate URL to prevent SSRF attacks
-        server_url = await validate_connector_url(server_url, connector_type="Jellyfin")
+        server_url, _ = await validate_connector_url(server_url, connector_type="Jellyfin")
 
         # Initialize connector
         jellyfin_client = JellyfinConnector(
