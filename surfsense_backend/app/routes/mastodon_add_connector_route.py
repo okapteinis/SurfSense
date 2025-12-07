@@ -18,6 +18,7 @@ logger = logging.getLogger(__name__)
 from app.connectors.mastodon_connector import MastodonConnector
 from app.db import SearchSourceConnector, SearchSourceConnectorType, User, get_async_session
 from app.users import current_active_user
+from app.utils.url_validator import validate_connector_url
 
 router = APIRouter()
 
@@ -71,6 +72,9 @@ async def add_mastodon_connector(
     instance_url = request.instance_url.rstrip("/")
     if not instance_url.startswith(("http://", "https://")):
         instance_url = f"https://{instance_url}"
+
+    # Validate URL to prevent SSRF attacks
+    instance_url = validate_connector_url(instance_url, connector_type="Mastodon")
 
     # Test connection to Mastodon
     mastodon_client = MastodonConnector(
@@ -148,6 +152,9 @@ async def test_mastodon_connection(
     instance_url = instance_url.rstrip("/")
     if not instance_url.startswith(("http://", "https://")):
         instance_url = f"https://{instance_url}"
+
+    # Validate URL to prevent SSRF attacks
+    instance_url = validate_connector_url(instance_url, connector_type="Mastodon")
 
     # Test connection
     mastodon_client = MastodonConnector(

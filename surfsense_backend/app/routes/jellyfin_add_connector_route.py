@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.connectors.jellyfin_connector import JellyfinConnector
 from app.db import User, get_async_session
 from app.users import current_active_user
+from app.utils.url_validator import validate_connector_url
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,9 @@ async def test_jellyfin_connection(
         server_url = request.server_url.strip()
         if not server_url.startswith(("http://", "https://")):
             server_url = f"http://{server_url}"
+
+        # Validate URL to prevent SSRF attacks
+        server_url = validate_connector_url(server_url, connector_type="Jellyfin")
 
         # Initialize connector
         jellyfin_client = JellyfinConnector(
@@ -139,6 +143,9 @@ async def add_jellyfin_connector(
         server_url = request.server_url.strip()
         if not server_url.startswith(("http://", "https://")):
             server_url = f"http://{server_url}"
+
+        # Validate URL to prevent SSRF attacks
+        server_url = validate_connector_url(server_url, connector_type="Jellyfin")
 
         # Initialize connector
         jellyfin_client = JellyfinConnector(

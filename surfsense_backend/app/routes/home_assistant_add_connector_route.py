@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 from app.connectors.home_assistant_connector import HomeAssistantConnector
 from app.db import SearchSourceConnector, SearchSourceConnectorType, User, get_async_session
 from app.users import current_active_user
+from app.utils.url_validator import validate_connector_url
 
 router = APIRouter()
 
@@ -66,6 +67,9 @@ async def add_home_assistant_connector(
     """
     # Validate and normalize URL
     ha_url = request.ha_url.rstrip("/")
+
+    # Validate URL to prevent SSRF attacks
+    ha_url = validate_connector_url(ha_url, connector_type="Home Assistant")
 
     # Test connection to Home Assistant
     ha_client = HomeAssistantConnector(
@@ -139,6 +143,9 @@ async def test_home_assistant_connection(
     """
     # Normalize URL
     ha_url = ha_url.rstrip("/")
+
+    # Validate URL to prevent SSRF attacks
+    ha_url = validate_connector_url(ha_url, connector_type="Home Assistant")
 
     # Test connection
     ha_client = HomeAssistantConnector(
