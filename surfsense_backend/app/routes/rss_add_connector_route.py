@@ -13,6 +13,7 @@ from sqlalchemy.future import select
 from app.connectors.rss_connector import RSSConnector
 from app.db import SearchSourceConnector, SearchSourceConnectorType, SearchSpace, User, get_async_session
 from app.users import current_active_user
+from app.utils.url_validator import validate_connector_url
 
 logger = logging.getLogger(__name__)
 
@@ -69,8 +70,11 @@ async def validate_feed(
 
     Checks if the feed is accessible, parseable, and has content.
     """
+    # Validate URL to prevent SSRF attacks
+    feed_url = validate_connector_url(str(request.url), connector_type="RSS Feed")
+
     connector = RSSConnector(feed_urls=[])
-    result = await connector.validate_feed(str(request.url))
+    result = await connector.validate_feed(feed_url)
 
     return FeedValidationResponse(
         url=result["url"],
@@ -132,12 +136,22 @@ async def validate_multiple_feeds(
 
     Returns validation results for each feed.
     """
+    # Validate URLs to prevent SSRF attacks
+    validated_urls = []
+    for url in feed_urls:
+        try:
+            validated_url = validate_connector_url(url, connector_type="RSS Feed")
+            validated_urls.append(validated_url)
+        except HTTPException:
+            # If URL validation fails, skip it (will be reported as invalid in results)
+            validated_urls.append(url)
+
     connector = RSSConnector(feed_urls=[])
 
     # Validate all feeds in parallel
     # Note: validate_feed never raises exceptions, it returns errors in the result dict
     results = await asyncio.gather(
-        *[connector.validate_feed(url) for url in feed_urls]
+        *[connector.validate_feed(url) for url in validated_urls]
     )
 
     valid_count = sum(1 for r in results if r["valid"])
@@ -165,6 +179,18 @@ async def add_rss_connector(
     The connector stores the list of feed URLs and can be indexed
     to fetch and store feed entries.
     """
+    # Validate all feed URLs to prevent SSRF attacks
+    validated_feed_urls = []
+    for url in request.feed_urls:
+        try:
+            validated_url = validate_connector_url(url, connector_type="RSS Feed")
+            validated_feed_urls.append(validated_url)
+        except HTTPException as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid feed URL '{url}': {e.detail}",
+            ) from e
+
     # Verify search space exists and belongs to user
     result = await session.execute(
         select(SearchSpace).where(
@@ -194,7 +220,7 @@ async def add_rss_connector(
         # Update existing connector with new/additional feeds
         current_feeds = existing_connector.config.get("FEED_URLS", [])
         # Merge feeds, avoiding duplicates
-        all_feeds = list(set(current_feeds + request.feed_urls))
+        all_feeds = list(set(current_feeds + validated_feed_urls))
         existing_connector.config["FEED_URLS"] = all_feeds
         existing_connector.name = request.name
 
@@ -216,7 +242,7 @@ async def add_rss_connector(
         connector_type=SearchSourceConnectorType.RSS_FEED_CONNECTOR,
         is_indexable=True,
         config={
-            "FEED_URLS": request.feed_urls,
+            "FEED_URLS": validated_feed_urls,
         },
         search_space_id=request.search_space_id,
         user_id=user.id,
@@ -227,13 +253,13 @@ async def add_rss_connector(
     await session.refresh(connector)
 
     logger.info(
-        f"Created RSS connector {connector.id} with {len(request.feed_urls)} feeds"
+        f"Created RSS connector {connector.id} with {len(validated_feed_urls)} feeds"
     )
 
     return AddRSSConnectorResponse(
         connector_id=connector.id,
-        message=f"RSS connector created with {len(request.feed_urls)} feeds",
-        feed_count=len(request.feed_urls),
+        message=f"RSS connector created with {len(validated_feed_urls)} feeds",
+        feed_count=len(validated_feed_urls),
     )
 
 
@@ -281,6 +307,18 @@ async def update_connector_feeds(
     """
     Update the list of feeds for an RSS connector.
     """
+    # Validate all feed URLs to prevent SSRF attacks
+    validated_feed_urls = []
+    for url in feed_urls:
+        try:
+            validated_url = validate_connector_url(url, connector_type="RSS Feed")
+            validated_feed_urls.append(validated_url)
+        except HTTPException as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid feed URL '{url}': {e.detail}",
+            ) from e
+
     result = await session.execute(
         select(SearchSourceConnector).where(
             SearchSourceConnector.id == connector_id,
@@ -296,15 +334,15 @@ async def update_connector_feeds(
             detail="RSS connector not found or access denied",
         )
 
-    connector.config["FEED_URLS"] = feed_urls
+    connector.config["FEED_URLS"] = validated_feed_urls
     await session.commit()
 
-    logger.info(f"Updated RSS connector {connector_id} with {len(feed_urls)} feeds")
+    logger.info(f"Updated RSS connector {connector_id} with {len(validated_feed_urls)} feeds")
 
     return {
         "connector_id": connector.id,
-        "message": f"Updated with {len(feed_urls)} feeds",
-        "feed_count": len(feed_urls),
+        "message": f"Updated with {len(validated_feed_urls)} feeds",
+        "feed_count": len(validated_feed_urls),
     }
 
 
