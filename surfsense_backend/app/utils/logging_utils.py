@@ -73,6 +73,29 @@ def sanitize_string(text: str) -> str:
     return sanitized
 
 
+def _sanitize_list(data: list[Any]) -> list[Any]:
+    """
+    Recursively sanitize a list by sanitizing its elements.
+
+    Args:
+        data: List that may contain sensitive data
+
+    Returns:
+        New list with sensitive values redacted
+    """
+    sanitized = []
+    for item in data:
+        if isinstance(item, dict):
+            sanitized.append(sanitize_dict(item))
+        elif isinstance(item, str):
+            sanitized.append(sanitize_string(item))
+        elif isinstance(item, list):
+            sanitized.append(_sanitize_list(item))
+        else:
+            sanitized.append(item)
+    return sanitized
+
+
 def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
     """
     Recursively sanitize a dictionary by redacting sensitive keys.
@@ -96,10 +119,7 @@ def sanitize_dict(data: dict[str, Any]) -> dict[str, Any]:
             sanitized[key] = sanitize_dict(value)
         # Recursively sanitize lists
         elif isinstance(value, list):
-            sanitized[key] = [
-                sanitize_dict(item) if isinstance(item, dict) else item
-                for item in value
-            ]
+            sanitized[key] = _sanitize_list(value)
         # Sanitize string values
         elif isinstance(value, str):
             sanitized[key] = sanitize_string(value)

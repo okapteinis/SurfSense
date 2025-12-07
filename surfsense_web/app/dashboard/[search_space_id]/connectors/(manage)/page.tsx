@@ -79,6 +79,22 @@ export default function ConnectorsPage() {
 			minute: "2-digit",
 		}).format(date);
 	};
+
+	// Helper function to set date range presets
+	const setDatePreset = (unit: "days" | "years", value: number): void => {
+		const now = new Date();
+		const pastDate = new Date(now);
+
+		if (unit === "days") {
+			pastDate.setDate(now.getDate() - value);
+		} else if (unit === "years") {
+			pastDate.setFullYear(now.getFullYear() - value);
+		}
+
+		setStartDate(pastDate);
+		setEndDate(now);
+	};
+
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
@@ -596,26 +612,14 @@ export default function ConnectorsPage() {
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => {
-									const now = new Date();
-									const thirtyDaysAgo = new Date(now);
-									thirtyDaysAgo.setDate(now.getDate() - 30);
-									setStartDate(thirtyDaysAgo);
-									setEndDate(now);
-								}}
+								onClick={() => setDatePreset("days", 30)}
 							>
 								{t("last_30_days")}
 							</Button>
 							<Button
 								variant="outline"
 								size="sm"
-								onClick={() => {
-									const now = new Date();
-									const yearAgo = new Date(now);
-									yearAgo.setFullYear(now.getFullYear() - 1);
-									setStartDate(yearAgo);
-									setEndDate(now);
-								}}
+								onClick={() => setDatePreset("years", 1)}
 							>
 								{t("last_year")}
 							</Button>

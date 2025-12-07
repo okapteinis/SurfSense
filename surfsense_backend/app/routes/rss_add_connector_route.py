@@ -20,6 +20,32 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/auth/rss", tags=["rss"])
 
 
+def _validate_feed_urls(feed_urls: list[str]) -> list[str]:
+    """
+    Validate a list of feed URLs to prevent SSRF attacks.
+
+    Args:
+        feed_urls: List of feed URLs to validate
+
+    Returns:
+        List of validated feed URLs
+
+    Raises:
+        HTTPException: If any URL is invalid or unsafe
+    """
+    validated_urls = []
+    for url in feed_urls:
+        try:
+            validated_url = validate_connector_url(url, connector_type="RSS Feed")
+            validated_urls.append(validated_url)
+        except HTTPException as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid feed URL '{url}': {e.detail}",
+            ) from e
+    return validated_urls
+
+
 class FeedValidationRequest(BaseModel):
     """Request to validate a feed URL."""
 
@@ -180,16 +206,7 @@ async def add_rss_connector(
     to fetch and store feed entries.
     """
     # Validate all feed URLs to prevent SSRF attacks
-    validated_feed_urls = []
-    for url in request.feed_urls:
-        try:
-            validated_url = validate_connector_url(url, connector_type="RSS Feed")
-            validated_feed_urls.append(validated_url)
-        except HTTPException as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid feed URL '{url}': {e.detail}",
-            ) from e
+    validated_feed_urls = _validate_feed_urls(request.feed_urls)
 
     # Verify search space exists and belongs to user
     result = await session.execute(
@@ -308,16 +325,7 @@ async def update_connector_feeds(
     Update the list of feeds for an RSS connector.
     """
     # Validate all feed URLs to prevent SSRF attacks
-    validated_feed_urls = []
-    for url in feed_urls:
-        try:
-            validated_url = validate_connector_url(url, connector_type="RSS Feed")
-            validated_feed_urls.append(validated_url)
-        except HTTPException as e:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid feed URL '{url}': {e.detail}",
-            ) from e
+    validated_feed_urls = _validate_feed_urls(feed_urls)
 
     result = await session.execute(
         select(SearchSourceConnector).where(
