@@ -22,16 +22,23 @@ logger = logging.getLogger(__name__)
 class MastodonConnector:
     """Connector for Mastodon and compatible ActivityPub platforms (Pixelfed, etc.)."""
 
-    def __init__(self, instance_url: str, access_token: str):
+    def __init__(
+        self,
+        instance_url: str,
+        access_token: str,
+        validated_ips: list[str] | None = None,
+    ):
         """
         Initialize the Mastodon connector.
 
         Args:
             instance_url: Base URL of Mastodon instance (e.g., https://mastodon.social)
             access_token: User access token for authentication
+            validated_ips: Pre-validated IP addresses to prevent DNS rebinding (TOCTOU protection)
         """
         self.instance_url = instance_url.rstrip("/")
         self.access_token = access_token
+        self.validated_ips = validated_ips
         self.headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type": "application/json",
@@ -51,12 +58,34 @@ class MastodonConnector:
         Returns:
             Tuple of (response_data, error_message)
         """
+        # Construct the full URL
         url = f"{self.instance_url}{endpoint}"
+
+        # If we have validated IPs, use them to prevent DNS rebinding attacks
+        if self.validated_ips:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(self.instance_url)
+            # Use first validated IP as the connection target
+            ip = self.validated_ips[0]
+            # Reconstruct URL with IP instead of hostname
+            url_with_ip = f"{parsed.scheme}://{ip}"
+            if parsed.port:
+                url_with_ip += f":{parsed.port}"
+            url_with_ip += endpoint
+
+            # Set Host header to original hostname for virtual hosting/TLS SNI
+            request_headers = self.headers.copy()
+            request_headers["Host"] = parsed.hostname
+            target_url = url_with_ip
+        else:
+            request_headers = self.headers
+            target_url = url
 
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.request(
-                    method, url, headers=self.headers, params=params, timeout=30
+                    method, target_url, headers=request_headers, params=params, timeout=30
                 ) as response:
                     if response.status == 200:
                         return await response.json(), None

@@ -69,13 +69,14 @@ async def add_home_assistant_connector(
     # Validate and normalize URL
     ha_url = request.ha_url.rstrip("/")
 
-    # Validate URL to prevent SSRF attacks
-    ha_url, _ = await validate_connector_url(ha_url, connector_type="Home Assistant")
+    # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
+    ha_url, validated_ips = await validate_connector_url(ha_url, connector_type="Home Assistant")
 
-    # Test connection to Home Assistant
+    # Test connection to Home Assistant using validated IPs to prevent DNS rebinding
     ha_client = HomeAssistantConnector(
         ha_url=ha_url,
         access_token=request.ha_access_token,
+        validated_ips=validated_ips,
     )
 
     connected, error = await ha_client.test_connection()
@@ -145,13 +146,14 @@ async def test_home_assistant_connection(
     # Normalize URL
     ha_url = ha_url.rstrip("/")
 
-    # Validate URL to prevent SSRF attacks
-    ha_url, _ = await validate_connector_url(ha_url, connector_type="Home Assistant")
+    # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
+    ha_url, validated_ips = await validate_connector_url(ha_url, connector_type="Home Assistant")
 
-    # Test connection
+    # Test connection using validated IPs to prevent DNS rebinding
     ha_client = HomeAssistantConnector(
         ha_url=ha_url,
         access_token=ha_access_token,
+        validated_ips=validated_ips,
     )
 
     connected, error = await ha_client.test_connection()

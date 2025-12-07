@@ -141,12 +141,15 @@ class RSSConnector:
             logger.error(f"Failed to parse OPML: {e}")
             raise ValueError(f"Invalid OPML format: {e}") from e
 
-    async def validate_feed(self, url: str) -> dict[str, Any]:
+    async def validate_feed(
+        self, url: str, validated_ips: list[str] | None = None
+    ) -> dict[str, Any]:
         """
         Validate a feed URL and check its health.
 
         Args:
             url: Feed URL to validate
+            validated_ips: Pre-validated IP addresses to prevent DNS rebinding (TOCTOU protection)
 
         Returns:
             Dict with validation results (valid, title, last_updated, item_count, error)
@@ -160,17 +163,39 @@ class RSSConnector:
             "error": None,
         }
 
-        # Validate URL for SSRF protection
-        is_safe, error_msg = await is_url_safe(url)
-        if not is_safe:
-            result["error"] = error_msg
-            return result
+        # Validate URL for SSRF protection (unless already validated externally)
+        if not validated_ips:
+            is_safe, error_msg = await is_url_safe(url)
+            if not is_safe:
+                result["error"] = error_msg
+                return result
 
         try:
+            # Build request URL using validated IPs if available
+            if validated_ips:
+                from urllib.parse import urlparse
+
+                parsed = urlparse(url)
+                ip = validated_ips[0]
+                target_url = f"{parsed.scheme}://{ip}"
+                if parsed.port:
+                    target_url += f":{parsed.port}"
+                target_url += parsed.path or "/"
+                if parsed.query:
+                    target_url += f"?{parsed.query}"
+
+                headers = {
+                    "User-Agent": "SurfSense RSS Reader/1.0",
+                    "Host": parsed.hostname,
+                }
+            else:
+                target_url = url
+                headers = {"User-Agent": "SurfSense RSS Reader/1.0"}
+
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    url,
-                    headers={"User-Agent": "SurfSense RSS Reader/1.0"},
+                    target_url,
+                    headers=headers,
                     follow_redirects=True,
                 )
                 response.raise_for_status()

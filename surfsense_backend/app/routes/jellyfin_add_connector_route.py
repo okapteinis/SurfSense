@@ -59,14 +59,15 @@ async def test_jellyfin_connection(
         if not server_url.startswith(("http://", "https://")):
             server_url = f"http://{server_url}"
 
-        # Validate URL to prevent SSRF attacks
-        server_url, _ = await validate_connector_url(server_url, connector_type="Jellyfin")
+        # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
+        server_url, validated_ips = await validate_connector_url(server_url, connector_type="Jellyfin")
 
-        # Initialize connector
+        # Initialize connector using validated IPs to prevent DNS rebinding
         jellyfin_client = JellyfinConnector(
             server_url=server_url,
             api_key=request.api_key,
             user_id=request.user_id,
+            validated_ips=validated_ips,
         )
 
         # Test connection
@@ -144,14 +145,15 @@ async def add_jellyfin_connector(
         if not server_url.startswith(("http://", "https://")):
             server_url = f"http://{server_url}"
 
-        # Validate URL to prevent SSRF attacks
-        server_url, _ = await validate_connector_url(server_url, connector_type="Jellyfin")
+        # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
+        server_url, validated_ips = await validate_connector_url(server_url, connector_type="Jellyfin")
 
-        # Initialize connector
+        # Initialize connector using validated IPs to prevent DNS rebinding
         jellyfin_client = JellyfinConnector(
             server_url=server_url,
             api_key=request.api_key,
             user_id=request.user_id,
+            validated_ips=validated_ips,
         )
 
         # Test connection

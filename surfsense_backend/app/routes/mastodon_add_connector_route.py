@@ -74,13 +74,14 @@ async def add_mastodon_connector(
     if not instance_url.startswith(("http://", "https://")):
         instance_url = f"https://{instance_url}"
 
-    # Validate URL to prevent SSRF attacks
-    instance_url, _ = await validate_connector_url(instance_url, connector_type="Mastodon")
+    # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
+    instance_url, validated_ips = await validate_connector_url(instance_url, connector_type="Mastodon")
 
-    # Test connection to Mastodon
+    # Test connection to Mastodon using validated IPs to prevent DNS rebinding
     mastodon_client = MastodonConnector(
         instance_url=instance_url,
         access_token=request.access_token,
+        validated_ips=validated_ips,
     )
 
     # Verify credentials and get account info
@@ -154,13 +155,14 @@ async def test_mastodon_connection(
     if not instance_url.startswith(("http://", "https://")):
         instance_url = f"https://{instance_url}"
 
-    # Validate URL to prevent SSRF attacks
-    instance_url, _ = await validate_connector_url(instance_url, connector_type="Mastodon")
+    # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
+    instance_url, validated_ips = await validate_connector_url(instance_url, connector_type="Mastodon")
 
-    # Test connection
+    # Test connection using validated IPs to prevent DNS rebinding
     mastodon_client = MastodonConnector(
         instance_url=instance_url,
         access_token=access_token,
+        validated_ips=validated_ips,
     )
 
     account, error = await mastodon_client.verify_credentials()
