@@ -10,9 +10,11 @@ This connector interfaces with the Mastodon REST API to retrieve:
 Works with Mastodon, Pixelfed, and other Mastodon-compatible instances.
 """
 
+import ipaddress
 import logging
 from datetime import datetime
 from typing import Any
+from urllib.parse import urlparse
 
 import aiohttp
 
@@ -63,13 +65,22 @@ class MastodonConnector:
 
         # If we have validated IPs, use them to prevent DNS rebinding attacks
         if self.validated_ips:
-            from urllib.parse import urlparse
-
             parsed = urlparse(self.instance_url)
             # Use first validated IP as the connection target
             ip = self.validated_ips[0]
+
+            # Properly format IPv6 addresses with brackets
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if isinstance(ip_obj, ipaddress.IPv6Address):
+                    ip_formatted = f"[{ip}]"
+                else:
+                    ip_formatted = ip
+            except ValueError:
+                ip_formatted = ip
+
             # Reconstruct URL with IP instead of hostname
-            url_with_ip = f"{parsed.scheme}://{ip}"
+            url_with_ip = f"{parsed.scheme}://{ip_formatted}"
             if parsed.port:
                 url_with_ip += f":{parsed.port}"
             url_with_ip += endpoint

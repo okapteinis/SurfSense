@@ -79,14 +79,12 @@ async def test_jellyfin_connection(
                 message=f"Connection failed: {error}",
             )
 
-        # Get server info for response
+        # Get server info for response using validated IPs to prevent DNS rebinding
         import httpx
 
+        url, headers = jellyfin_client._build_url("/System/Info")
         async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.get(
-                f"{server_url}/System/Info",
-                headers=jellyfin_client.headers,
-            )
+            response = await client.get(url, headers=headers)
             if response.status_code == 200:
                 info = response.json()
                 server_name = info.get("ServerName", "Unknown")
