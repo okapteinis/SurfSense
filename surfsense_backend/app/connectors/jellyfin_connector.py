@@ -132,11 +132,12 @@ class JellyfinConnector:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 if self.user_id:
-                    url = f"{self.server_url}/Users/{self.user_id}/Views"
+                    endpoint = f"/Users/{self.user_id}/Views"
                 else:
-                    url = f"{self.server_url}/Library/VirtualFolders"
+                    endpoint = "/Library/VirtualFolders"
 
-                response = await client.get(url, headers=self.headers)
+                url, headers = self._build_url(endpoint)
+                response = await client.get(url, headers=headers)
 
                 if response.status_code == 200:
                     data = response.json()
@@ -193,11 +194,12 @@ class JellyfinConnector:
                     params["IncludeItemTypes"] = ",".join(item_types)
 
                 if self.user_id:
-                    url = f"{self.server_url}/Users/{self.user_id}/Items"
+                    endpoint = f"/Users/{self.user_id}/Items"
                 else:
-                    url = f"{self.server_url}/Items"
+                    endpoint = "/Items"
 
-                response = await client.get(url, headers=self.headers, params=params)
+                url, headers = self._build_url(endpoint)
+                response = await client.get(url, headers=headers, params=params)
 
                 if response.status_code == 200:
                     data = response.json()
@@ -231,9 +233,11 @@ class JellyfinConnector:
                     "SortOrder": "Descending",
                 }
 
+                endpoint = f"/Users/{self.user_id}/Items"
+                url, headers = self._build_url(endpoint)
                 response = await client.get(
-                    f"{self.server_url}/Users/{self.user_id}/Items",
-                    headers=self.headers,
+                    url,
+                    headers=headers,
                     params=params,
                 )
 
@@ -269,9 +273,11 @@ class JellyfinConnector:
                     "SortOrder": "Descending",
                 }
 
+                endpoint = f"/Users/{self.user_id}/Items"
+                url, headers = self._build_url(endpoint)
                 response = await client.get(
-                    f"{self.server_url}/Users/{self.user_id}/Items",
-                    headers=self.headers,
+                    url,
+                    headers=headers,
                     params=params,
                 )
 
