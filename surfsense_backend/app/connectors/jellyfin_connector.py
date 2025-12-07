@@ -2,7 +2,9 @@
 Jellyfin connector for media library access.
 """
 
+import ipaddress
 import logging
+from urllib.parse import urlparse
 
 import httpx
 
@@ -52,13 +54,22 @@ class JellyfinConnector:
             Tuple of (url, headers_dict)
         """
         if self.validated_ips:
-            from urllib.parse import urlparse
-
             parsed = urlparse(self.server_url)
             # Use first validated IP as connection target
             ip = self.validated_ips[0]
+
+            # Properly format IPv6 addresses with brackets
+            try:
+                ip_obj = ipaddress.ip_address(ip)
+                if isinstance(ip_obj, ipaddress.IPv6Address):
+                    ip_formatted = f"[{ip}]"
+                else:
+                    ip_formatted = ip
+            except ValueError:
+                ip_formatted = ip
+
             # Reconstruct URL with IP
-            url = f"{parsed.scheme}://{ip}"
+            url = f"{parsed.scheme}://{ip_formatted}"
             if parsed.port:
                 url += f":{parsed.port}"
             url += endpoint

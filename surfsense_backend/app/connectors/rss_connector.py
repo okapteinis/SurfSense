@@ -17,7 +17,7 @@ import socket
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 import feedparser
 import httpx
@@ -173,11 +173,20 @@ class RSSConnector:
         try:
             # Build request URL using validated IPs if available
             if validated_ips:
-                from urllib.parse import urlparse
-
                 parsed = urlparse(url)
                 ip = validated_ips[0]
-                target_url = f"{parsed.scheme}://{ip}"
+
+                # Properly format IPv6 addresses with brackets
+                try:
+                    ip_obj = ipaddress.ip_address(ip)
+                    if isinstance(ip_obj, ipaddress.IPv6Address):
+                        ip_formatted = f"[{ip}]"
+                    else:
+                        ip_formatted = ip
+                except ValueError:
+                    ip_formatted = ip
+
+                target_url = f"{parsed.scheme}://{ip_formatted}"
                 if parsed.port:
                     target_url += f":{parsed.port}"
                 target_url += parsed.path or "/"
@@ -260,11 +269,20 @@ class RSSConnector:
         try:
             # Build request URL using validated IPs if available
             if validated_ips:
-                from urllib.parse import urlparse
-
                 parsed = urlparse(url)
                 ip = validated_ips[0]
-                target_url = f"{parsed.scheme}://{ip}"
+
+                # Properly format IPv6 addresses with brackets
+                try:
+                    ip_obj = ipaddress.ip_address(ip)
+                    if isinstance(ip_obj, ipaddress.IPv6Address):
+                        ip_formatted = f"[{ip}]"
+                    else:
+                        ip_formatted = ip
+                except ValueError:
+                    ip_formatted = ip
+
+                target_url = f"{parsed.scheme}://{ip_formatted}"
                 if parsed.port:
                     target_url += f":{parsed.port}"
                 target_url += parsed.path or "/"
