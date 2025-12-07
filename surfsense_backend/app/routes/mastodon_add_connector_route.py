@@ -19,6 +19,7 @@ from app.connectors.mastodon_connector import MastodonConnector
 from app.db import SearchSourceConnector, SearchSourceConnectorType, User, get_async_session
 from app.users import current_active_user
 from app.utils.url_validator import validate_connector_url
+from app.utils.logging_utils import sanitize_string
 
 router = APIRouter()
 
@@ -164,8 +165,9 @@ async def test_mastodon_connection(
 
     account, error = await mastodon_client.verify_credentials()
     if error:
-        # Log detailed error server-side for debugging
-        logger.error(f"Mastodon connection failed for user {user.id}: {error}")
+        # Log sanitized error server-side for debugging (redact sensitive data)
+        sanitized_error = sanitize_string(str(error))
+        logger.error(f"Mastodon connection failed for user {user.id}: {sanitized_error}")
         raise HTTPException(
             status_code=400,
             detail="Unable to connect to Mastodon instance. Please verify the URL and access token are correct.",
