@@ -14,6 +14,30 @@ from urllib.parse import urlparse
 from fastapi import HTTPException
 
 
+def format_ip_for_url(ip: str) -> str:
+    """
+    Format an IP address for use in a URL, handling IPv6 bracket notation.
+
+    IPv6 addresses must be wrapped in brackets when used in URLs
+    (e.g., http://[::1]/ instead of http://::1/).
+
+    Args:
+        ip: IP address string (IPv4 or IPv6)
+
+    Returns:
+        Formatted IP address suitable for URL construction
+    """
+    try:
+        ip_obj = ipaddress.ip_address(ip)
+        if isinstance(ip_obj, ipaddress.IPv6Address):
+            return f"[{ip}]"
+        else:
+            return ip
+    except ValueError:
+        # If not a valid IP, return as-is
+        return ip
+
+
 # Private/internal IP ranges to block
 BLOCKED_IP_RANGES = [
     ipaddress.ip_network("0.0.0.0/8"),  # Current network

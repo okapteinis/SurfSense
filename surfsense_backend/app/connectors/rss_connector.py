@@ -23,6 +23,8 @@ import feedparser
 import httpx
 from markdownify import markdownify as md
 
+from app.utils.url_validator import format_ip_for_url
+
 logger = logging.getLogger(__name__)
 
 
@@ -174,17 +176,7 @@ class RSSConnector:
             # Build request URL using validated IPs if available
             if validated_ips:
                 parsed = urlparse(url)
-                ip = validated_ips[0]
-
-                # Properly format IPv6 addresses with brackets
-                try:
-                    ip_obj = ipaddress.ip_address(ip)
-                    if isinstance(ip_obj, ipaddress.IPv6Address):
-                        ip_formatted = f"[{ip}]"
-                    else:
-                        ip_formatted = ip
-                except ValueError:
-                    ip_formatted = ip
+                ip_formatted = format_ip_for_url(validated_ips[0])
 
                 target_url = f"{parsed.scheme}://{ip_formatted}"
                 if parsed.port:
@@ -270,17 +262,7 @@ class RSSConnector:
             # Build request URL using validated IPs if available
             if validated_ips:
                 parsed = urlparse(url)
-                ip = validated_ips[0]
-
-                # Properly format IPv6 addresses with brackets
-                try:
-                    ip_obj = ipaddress.ip_address(ip)
-                    if isinstance(ip_obj, ipaddress.IPv6Address):
-                        ip_formatted = f"[{ip}]"
-                    else:
-                        ip_formatted = ip
-                except ValueError:
-                    ip_formatted = ip
+                ip_formatted = format_ip_for_url(validated_ips[0])
 
                 target_url = f"{parsed.scheme}://{ip_formatted}"
                 if parsed.port:
