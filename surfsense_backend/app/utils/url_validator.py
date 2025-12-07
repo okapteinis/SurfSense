@@ -58,25 +58,33 @@ def is_ip_blocked(ip_str: str) -> bool:
         return False
 
 
-async def resolve_and_check_hostname(hostname: str) -> None:
+async def resolve_and_check_hostname(hostname: str) -> list[str]:
     """
     Resolve hostname to IP addresses and check if any resolve to blocked ranges.
 
     This prevents SSRF bypass attacks using domains that resolve to private IPs
     (e.g., 192.168.0.1.nip.io -> 192.168.0.1).
 
+    To prevent TOCTOU (Time-Of-Check-Time-Of-Use) vulnerabilities from DNS
+    rebinding attacks, this function returns the validated IP addresses that
+    should be used immediately for requests instead of re-resolving the hostname.
+
     Args:
         hostname: Hostname to resolve and check
 
+    Returns:
+        List of validated safe IP addresses
+
     Raises:
-        HTTPException: If hostname resolves to a blocked IP address
+        HTTPException: If hostname resolves to a blocked IP address or cannot be resolved
     """
     try:
         # Resolve hostname to IP addresses (both IPv4 and IPv6) using async DNS resolution
         # This prevents blocking the event loop
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         addr_info = await loop.getaddrinfo(hostname, None)
 
+        validated_ips = []
         for family, _, _, _, sockaddr in addr_info:
             # Extract IP address from sockaddr tuple
             ip_str = sockaddr[0]
@@ -87,6 +95,12 @@ async def resolve_and_check_hostname(hostname: str) -> None:
                     status_code=400,
                     detail=f"Hostname {hostname} resolves to blocked IP address {ip_str}",
                 )
+
+            # Collect validated IPs (avoid duplicates)
+            if ip_str not in validated_ips:
+                validated_ips.append(ip_str)
+
+        return validated_ips
 
     except socket.gaierror:
         # DNS resolution failed - hostname doesn't exist
@@ -106,16 +120,25 @@ async def resolve_and_check_hostname(hostname: str) -> None:
         ) from e
 
 
-async def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
+async def validate_url_safe_for_ssrf(
+    url: str, allow_private: bool = False
+) -> tuple[str, list[str] | None]:
     """
     Validate that a URL is safe to make requests to, preventing SSRF attacks.
+
+    To prevent TOCTOU vulnerabilities from DNS rebinding attacks, this function
+    returns validated IP addresses that should be used for the actual HTTP request
+    instead of re-resolving the hostname.
 
     Args:
         url: The URL to validate
         allow_private: If True, allow private IP ranges (use with caution)
 
     Returns:
-        The validated URL
+        Tuple of (validated_url, validated_ips):
+            - validated_url: The validated URL string
+            - validated_ips: List of safe IP addresses to use for requests,
+                           or None if hostname is already an IP address
 
     Raises:
         HTTPException: If URL is unsafe or invalid
@@ -170,6 +193,9 @@ async def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> s
             detail="Access to localhost is not allowed",
         )
 
+    # Track validated IPs to prevent TOCTOU attacks
+    validated_ips: list[str] | None = None
+
     # If allow_private is False, check IP ranges
     if not allow_private:
         # First check if hostname is already an IP address
@@ -194,9 +220,11 @@ async def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> s
             # Only attempt DNS resolution if hostname is not already an IP
             ipaddress.ip_address(hostname)
             # If we get here, hostname is already an IP (already checked above)
+            # No need to track IPs separately since hostname IS the IP
         except ValueError:
             # Hostname is a domain name, resolve it to check IPs
-            await resolve_and_check_hostname(hostname)
+            # Store the validated IPs to prevent DNS rebinding (TOCTOU)
+            validated_ips = await resolve_and_check_hostname(hostname)
 
     # Additional validation: check for URL encoding tricks
     if "%" in url:
@@ -208,7 +236,7 @@ async def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> s
             # Recursively validate the decoded URL
             return await validate_url_safe_for_ssrf(decoded_url, allow_private)
 
-    return url
+    return url, validated_ips
 
 
 async def validate_connector_url(url: str, connector_type: str = "external") -> str:
@@ -217,6 +245,10 @@ async def validate_connector_url(url: str, connector_type: str = "external") -> 
 
     This is a convenience wrapper around validate_url_safe_for_ssrf
     with connector-specific error messages.
+
+    Note: This function only returns the validated URL for backwards compatibility.
+    If you need the validated IP addresses to prevent TOCTOU attacks, call
+    validate_url_safe_for_ssrf() directly.
 
     Args:
         url: The URL to validate
@@ -229,7 +261,8 @@ async def validate_connector_url(url: str, connector_type: str = "external") -> 
         HTTPException: If URL is unsafe
     """
     try:
-        return await validate_url_safe_for_ssrf(url, allow_private=False)
+        validated_url, _ = await validate_url_safe_for_ssrf(url, allow_private=False)
+        return validated_url
     except HTTPException as e:
         # Re-raise with connector-specific context
         raise HTTPException(
