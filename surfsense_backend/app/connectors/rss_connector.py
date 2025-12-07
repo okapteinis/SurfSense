@@ -237,27 +237,52 @@ class RSSConnector:
 
         return result
 
-    async def fetch_feed(self, url: str) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
+    async def fetch_feed(
+        self, url: str, validated_ips: list[str] | None = None
+    ) -> tuple[dict[str, Any] | None, list[dict[str, Any]]]:
         """
         Fetch and parse a single feed.
 
         Args:
             url: Feed URL
+            validated_ips: Pre-validated IP addresses to prevent DNS rebinding (TOCTOU protection)
 
         Returns:
             Tuple of (feed_info, list of entries)
         """
-        # Validate URL for SSRF protection
-        is_safe, error_msg = await is_url_safe(url)
-        if not is_safe:
-            logger.warning(f"Unsafe URL rejected: {url} - {error_msg}")
-            return None, []
+        # Validate URL for SSRF protection (unless already validated externally)
+        if not validated_ips:
+            is_safe, error_msg = await is_url_safe(url)
+            if not is_safe:
+                logger.warning(f"Unsafe URL rejected: {url} - {error_msg}")
+                return None, []
 
         try:
+            # Build request URL using validated IPs if available
+            if validated_ips:
+                from urllib.parse import urlparse
+
+                parsed = urlparse(url)
+                ip = validated_ips[0]
+                target_url = f"{parsed.scheme}://{ip}"
+                if parsed.port:
+                    target_url += f":{parsed.port}"
+                target_url += parsed.path or "/"
+                if parsed.query:
+                    target_url += f"?{parsed.query}"
+
+                headers = {
+                    "User-Agent": "SurfSense RSS Reader/1.0",
+                    "Host": parsed.hostname,
+                }
+            else:
+                target_url = url
+                headers = {"User-Agent": "SurfSense RSS Reader/1.0"}
+
             async with httpx.AsyncClient(timeout=self.timeout) as client:
                 response = await client.get(
-                    url,
-                    headers={"User-Agent": "SurfSense RSS Reader/1.0"},
+                    target_url,
+                    headers=headers,
                     follow_redirects=True,
                 )
                 response.raise_for_status()
