@@ -70,7 +70,7 @@ async def add_home_assistant_connector(
     ha_url = request.ha_url.rstrip("/")
 
     # Validate URL to prevent SSRF attacks
-    ha_url = await validate_connector_url(ha_url, connector_type="Home Assistant")
+    ha_url, _ = await validate_connector_url(ha_url, connector_type="Home Assistant")
 
     # Test connection to Home Assistant
     ha_client = HomeAssistantConnector(
@@ -146,7 +146,7 @@ async def test_home_assistant_connection(
     ha_url = ha_url.rstrip("/")
 
     # Validate URL to prevent SSRF attacks
-    ha_url = await validate_connector_url(ha_url, connector_type="Home Assistant")
+    ha_url, _ = await validate_connector_url(ha_url, connector_type="Home Assistant")
 
     # Test connection
     ha_client = HomeAssistantConnector(
