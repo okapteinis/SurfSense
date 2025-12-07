@@ -127,7 +127,7 @@ async def connect_airtable(space_id: int, user: User = Depends(current_active_us
 
     except Exception as e:
         sanitized_error = sanitize_error_message(e)
-        logger.error(f"Failed to initiate Airtable OAuth: {sanitized_error}")
+        logger.error(f"Failed to initiate Airtable OAuth: {sanitized_error}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to initiate Airtable OAuth"
         ) from e
@@ -275,7 +275,7 @@ async def airtable_callback(
             ) from e
         except Exception as e:
             sanitized_error = sanitize_error_message(e)
-            logger.error(f"Failed to create search source connector: {sanitized_error}")
+            logger.error(f"Failed to create search source connector: {sanitized_error}", exc_info=True)
             await session.rollback()
             raise HTTPException(
                 status_code=500,
@@ -286,7 +286,7 @@ async def airtable_callback(
         raise
     except Exception as e:
         sanitized_error = sanitize_error_message(e)
-        logger.error(f"Failed to complete Airtable OAuth: {sanitized_error}")
+        logger.error(f"Failed to complete Airtable OAuth: {sanitized_error}", exc_info=True)
         raise HTTPException(
             status_code=500, detail="Failed to complete Airtable OAuth"
         ) from e

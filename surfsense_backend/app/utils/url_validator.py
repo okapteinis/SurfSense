@@ -7,6 +7,7 @@ preventing attacks against internal services and localhost.
 
 import ipaddress
 import re
+import socket
 from urllib.parse import urlparse
 
 from fastapi import HTTPException
@@ -54,6 +55,53 @@ def is_ip_blocked(ip_str: str) -> bool:
         return any(ip in blocked_range for blocked_range in BLOCKED_IP_RANGES)
     except ValueError:
         return False
+
+
+def resolve_and_check_hostname(hostname: str) -> None:
+    """
+    Resolve hostname to IP addresses and check if any resolve to blocked ranges.
+
+    This prevents SSRF bypass attacks using domains that resolve to private IPs
+    (e.g., 192.168.0.1.nip.io -> 192.168.0.1).
+
+    Args:
+        hostname: Hostname to resolve and check
+
+    Raises:
+        HTTPException: If hostname resolves to a blocked IP address
+    """
+    try:
+        # Resolve hostname to IP addresses (both IPv4 and IPv6)
+        # getaddrinfo returns a list of tuples: (family, type, proto, canonname, sockaddr)
+        addr_info = socket.getaddrinfo(hostname, None)
+
+        for family, _, _, _, sockaddr in addr_info:
+            # Extract IP address from sockaddr tuple
+            ip_str = sockaddr[0]
+
+            # Check if resolved IP is blocked
+            if is_ip_blocked(ip_str):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Hostname {hostname} resolves to blocked IP address {ip_str}",
+                )
+
+    except socket.gaierror:
+        # DNS resolution failed - hostname doesn't exist
+        # This is a validation error, not an SSRF issue
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unable to resolve hostname: {hostname}",
+        )
+    except HTTPException:
+        # Re-raise HTTPExceptions (blocked IP detected)
+        raise
+    except Exception as e:
+        # Unexpected error during DNS resolution
+        raise HTTPException(
+            status_code=400,
+            detail=f"Error resolving hostname {hostname}: {e!s}",
+        ) from e
 
 
 def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
@@ -122,8 +170,7 @@ def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
 
     # If allow_private is False, check IP ranges
     if not allow_private:
-        # Try to resolve hostname to IP and check if it's in blocked ranges
-        # First check if hostname is already an IP
+        # First check if hostname is already an IP address
         if is_ip_blocked(hostname):
             raise HTTPException(
                 status_code=400,
@@ -138,6 +185,16 @@ def validate_url_safe_for_ssrf(url: str, allow_private: bool = False) -> str:
                     status_code=400,
                     detail="Access to private IP addresses is not allowed",
                 )
+
+        # Resolve hostname to IP addresses and check for blocked IPs
+        # This prevents bypass attacks using domains like 192.168.0.1.nip.io
+        try:
+            # Only attempt DNS resolution if hostname is not already an IP
+            ipaddress.ip_address(hostname)
+            # If we get here, hostname is already an IP (already checked above)
+        except ValueError:
+            # Hostname is a domain name, resolve it to check IPs
+            resolve_and_check_hostname(hostname)
 
     # Additional validation: check for URL encoding tricks
     if "%" in url:
