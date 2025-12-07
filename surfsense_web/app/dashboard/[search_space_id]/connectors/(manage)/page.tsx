@@ -597,10 +597,11 @@ export default function ConnectorsPage() {
 								variant="outline"
 								size="sm"
 								onClick={() => {
-									const thirtyDaysAgo = new Date(today);
-									thirtyDaysAgo.setDate(today.getDate() - 30);
+									const now = new Date();
+									const thirtyDaysAgo = new Date(now);
+									thirtyDaysAgo.setDate(now.getDate() - 30);
 									setStartDate(thirtyDaysAgo);
-									setEndDate(today);
+									setEndDate(now);
 								}}
 							>
 								{t("last_30_days")}
@@ -609,10 +610,11 @@ export default function ConnectorsPage() {
 								variant="outline"
 								size="sm"
 								onClick={() => {
-									const yearAgo = new Date(today);
-									yearAgo.setFullYear(today.getFullYear() - 1);
+									const now = new Date();
+									const yearAgo = new Date(now);
+									yearAgo.setFullYear(now.getFullYear() - 1);
 									setStartDate(yearAgo);
-									setEndDate(today);
+									setEndDate(now);
 								}}
 							>
 								{t("last_year")}
