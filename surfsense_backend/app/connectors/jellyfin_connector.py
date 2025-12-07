@@ -16,7 +16,13 @@ JELLYFIN_TICKS_PER_MINUTE = 600_000_000
 class JellyfinConnector:
     """Connector for Jellyfin media server API."""
 
-    def __init__(self, server_url: str, api_key: str, user_id: str | None = None):
+    def __init__(
+        self,
+        server_url: str,
+        api_key: str,
+        user_id: str | None = None,
+        validated_ips: list[str] | None = None,
+    ):
         """
         Initialize the Jellyfin connector.
 
@@ -24,14 +30,45 @@ class JellyfinConnector:
             server_url: Base URL of the Jellyfin server (e.g., http://localhost:8096)
             api_key: Jellyfin API key for authentication
             user_id: Optional user ID for user-specific data
+            validated_ips: Pre-validated IP addresses to prevent DNS rebinding (TOCTOU protection)
         """
         self.server_url = server_url.rstrip("/")
         self.api_key = api_key
         self.user_id = user_id
+        self.validated_ips = validated_ips
         self.headers = {
             "X-Emby-Token": api_key,
             "Content-Type": "application/json",
         }
+
+    def _build_url(self, endpoint: str) -> tuple[str, dict[str, str]]:
+        """
+        Build request URL and headers, using validated IPs if available.
+
+        Args:
+            endpoint: API endpoint path
+
+        Returns:
+            Tuple of (url, headers_dict)
+        """
+        if self.validated_ips:
+            from urllib.parse import urlparse
+
+            parsed = urlparse(self.server_url)
+            # Use first validated IP as connection target
+            ip = self.validated_ips[0]
+            # Reconstruct URL with IP
+            url = f"{parsed.scheme}://{ip}"
+            if parsed.port:
+                url += f":{parsed.port}"
+            url += endpoint
+
+            # Set Host header for virtual hosting/TLS SNI
+            headers = self.headers.copy()
+            headers["Host"] = parsed.hostname
+            return url, headers
+        else:
+            return f"{self.server_url}{endpoint}", self.headers
 
     async def test_connection(self) -> tuple[bool, str | None]:
         """
@@ -41,11 +78,9 @@ class JellyfinConnector:
             Tuple of (success, error_message)
         """
         try:
+            url, headers = self._build_url("/System/Info")
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(
-                    f"{self.server_url}/System/Info",
-                    headers=self.headers,
-                )
+                response = await client.get(url, headers=headers)
 
                 if response.status_code == 200:
                     info = response.json()
@@ -75,11 +110,9 @@ class JellyfinConnector:
             Tuple of (users_list, error_message)
         """
         try:
+            url, headers = self._build_url("/Users")
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(
-                    f"{self.server_url}/Users",
-                    headers=self.headers,
-                )
+                response = await client.get(url, headers=headers)
 
                 if response.status_code == 200:
                     return response.json(), None
