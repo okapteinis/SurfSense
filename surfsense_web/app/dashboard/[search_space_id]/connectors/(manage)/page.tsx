@@ -82,7 +82,6 @@ export default function ConnectorsPage() {
 	const router = useRouter();
 	const params = useParams();
 	const searchSpaceId = params.search_space_id as string;
-	const today = new Date();
 
 	const { connectors, isLoading, error, deleteConnector, indexConnector, updateConnector } =
 		useSearchSourceConnectors(false, parseInt(searchSpaceId));
@@ -117,10 +116,11 @@ export default function ConnectorsPage() {
 					return endDate ? date > endDate : false;
 				default:
 					// Other connectors: only past dates
-					return date > today || (endDate ? date > endDate : false);
+					const now = new Date();
+					return date > now || (endDate ? date > endDate : false);
 			}
 		},
-		[selectedConnector, endDate, today]
+		[selectedConnector, endDate]
 	);
 
 	/**
@@ -136,10 +136,11 @@ export default function ConnectorsPage() {
 					return startDate ? date < startDate : false;
 				default:
 					// Other connectors: only past dates
-					return date > today || (startDate ? date < startDate : false);
+					const now = new Date();
+					return date > now || (startDate ? date < startDate : false);
 			}
 		},
-		[selectedConnector, startDate, today]
+		[selectedConnector, startDate]
 	);
 
 	// Periodic indexing state
