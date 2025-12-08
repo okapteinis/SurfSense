@@ -28,14 +28,11 @@ def format_ip_for_url(ip: str) -> str:
         Formatted IP address suitable for URL construction
     """
     try:
-        ip_obj = ipaddress.ip_address(ip)
-        if isinstance(ip_obj, ipaddress.IPv6Address):
+        if isinstance(ipaddress.ip_address(ip), ipaddress.IPv6Address):
             return f"[{ip}]"
-        else:
-            return ip
     except ValueError:
-        # If not a valid IP, return as-is
-        return ip
+        pass
+    return ip
 
 
 # Private/internal IP ranges to block
