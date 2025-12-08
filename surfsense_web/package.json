@@ -23,7 +23,7 @@
 	"dependencies": {
 		"@ai-sdk/react": "^1.2.12",
 		"@hookform/resolvers": "^4.1.3",
-		"@llamaindex/chat-ui": "^0.5.17",
+		"@llamaindex/chat-ui": "^0.6.1",
 		"@next/third-parties": "^15.5.6",
 		"@number-flow/react": "^0.5.10",
 		"@radix-ui/react-accordion": "^1.2.11",
@@ -53,7 +53,7 @@
 		"@tanstack/react-table": "^8.21.3",
 		"@types/mdx": "^2.0.13",
 		"@types/react-syntax-highlighter": "^15.5.13",
-		"ai": "^4.3.19",
+		"ai": "^5.0.108",
 		"canvas-confetti": "^1.9.3",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
@@ -62,7 +62,7 @@
 		"dotenv": "^17.2.3",
 		"drizzle-orm": "^0.44.5",
 		"emblor": "^1.4.8",
-		"fumadocs-core": "^15.6.6",
+		"fumadocs-core": "^16.2.3",
 		"fumadocs-mdx": "^11.7.1",
 		"fumadocs-ui": "^15.6.6",
 		"geist": "^1.4.2",
@@ -84,7 +84,7 @@
 		"react-json-view-lite": "^2.4.1",
 		"react-markdown": "^10.1.0",
 		"react-rough-notation": "^1.0.5",
-		"react-syntax-highlighter": "^15.6.6",
+		"react-syntax-highlighter": "^16.1.0",
 		"react-wrap-balancer": "^1.1.1",
 		"rehype-raw": "^7.0.0",
 		"rehype-sanitize": "^6.0.0",
@@ -105,11 +105,20 @@
 		"@types/react": "^19.1.8",
 		"@types/react-dom": "^19.1.6",
 		"cross-env": "^7.0.3",
-		"drizzle-kit": "^0.31.5",
+		"drizzle-kit": "^0.31.8",
 		"eslint": "^9.32.0",
 		"eslint-config-next": "15.2.0",
 		"tailwindcss": "^4.1.11",
 		"tsx": "^4.20.6",
 		"typescript": "^5.8.3"
+	},
+	"pnpm": {
+		"overrides": {
+			"esbuild": ">=0.25.0",
+			"mdast-util-to-hast": ">=13.2.1",
+			"prismjs": ">=1.30.0",
+			"jsondiffpatch": ">=0.7.2",
+			"js-yaml": ">=4.1.1"
+		}
 	}
 }
