@@ -99,9 +99,10 @@ class RedirectValidator:
         # Check subdomains
         for allowed in self.allowed_domains:
             if allowed.startswith("*."):
-                # Wildcard subdomain
-                base = allowed[2:]
-                if hostname.endswith(base) or hostname == base[1:]:
+                # Wildcard subdomain - ensure proper subdomain matching
+                base_domain = allowed[2:]  # Remove "*."
+                # Must end with ".base_domain" (subdomain) OR equal base_domain exactly
+                if hostname == base_domain or hostname.endswith("." + base_domain):
                     return True
             elif hostname == allowed:
                 return True

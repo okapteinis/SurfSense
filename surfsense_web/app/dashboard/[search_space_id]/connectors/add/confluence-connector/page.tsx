@@ -41,11 +41,15 @@ const confluenceConnectorFormSchema = z.object({
 				try {
 					const parsedUrl = new URL(url);
 					const hostname = parsedUrl.hostname.toLowerCase();
-					// Check if hostname ends with .atlassian.net or contains confluence
-					// Using endsWith for domain suffix check prevents bypass attacks
-					return hostname.endsWith(".atlassian.net") ||
-					       hostname === "atlassian.net" ||
-					       hostname.includes("confluence");
+					// Check if hostname ends with .atlassian.net
+					if (hostname.endsWith(".atlassian.net") || hostname === "atlassian.net") {
+						return true;
+					}
+					// For self-hosted Confluence, check secure patterns only:
+					// - Starts with "confluence." (e.g., confluence.company.com)
+					// - Contains ".confluence." (e.g., company.confluence.server.com)
+					// This prevents bypass attacks like "evil-confluence.com" or "confluence.evil.com"
+					return hostname.startsWith("confluence.") || hostname.includes(".confluence.");
 				} catch {
 					return false;
 				}

@@ -238,6 +238,7 @@ class SOPSManager:
                 return {
                     "success": True,
                     "key": key_path,
+                    "value": value,  # Include new value for verification
                     "message": f"Secret updated successfully",
                     "old_value_masked": "***" if old_value != "<not set>" else old_value
                 }

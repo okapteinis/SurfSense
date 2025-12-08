@@ -8,12 +8,15 @@
 
 ## Executive Summary
 
-Comprehensive security remediation has been completed for the SurfSense project, addressing **73 security vulnerabilities** across dependencies and code:
+Comprehensive security remediation has been completed for the SurfSense project, addressing **78 security issues** across dependencies, code, and workflows:
 
 - ✅ **20/20 CodeQL Code Vulnerabilities Fixed** (100%)
   - 4 CRITICAL (SSRF)
   - 10 HIGH (Sensitive Logging, URL Validation)
-  - 6 MEDIUM (Exception Exposure, Open Redirects, Permissions)
+  - 6 MEDIUM (Exception Exposure, Open Redirects)
+
+- ✅ **5/5 GitHub Actions Permission Issues Fixed** (100%)
+  - Principle of least privilege applied to all workflows
 
 - ✅ **51/53 Dependabot Alerts Resolved** (96%)
   - 50 Fixed
@@ -39,7 +42,7 @@ Comprehensive security remediation has been completed for the SurfSense project,
 - Added TOCTOU protection via validated IP caching
 - Blocks private IPs, loopback, link-local addresses
 
-### 2. Sensitive Data Protection (7 HIGH Fixes)
+### 2. Sensitive Data Protection (8 HIGH Fixes)
 
 **Alerts Fixed**: #27, #26, #25, #16, #8, #9, #7, #6
 
@@ -82,7 +85,7 @@ Comprehensive security remediation has been completed for the SurfSense project,
 - Stack traces only in server logs
 - Generic error messages for external users
 
-### 5. Open Redirect Prevention (3 MEDIUM Fixes)
+### 5. Open Redirect Prevention (5 MEDIUM Fixes)
 
 **Alerts Fixed**: #12, #13, #22, #10, #11
 

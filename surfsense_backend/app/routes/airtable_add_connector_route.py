@@ -164,7 +164,28 @@ async def airtable_callback(
             ) from e
 
         user_id = UUID(data["user_id"])
-        space_id = data["space_id"]
+
+        # Validate space_id as UUID (prevents injection attacks)
+        try:
+            space_id_uuid = UUID(data["space_id"])
+            space_id = str(space_id_uuid)
+        except (ValueError, KeyError) as e:
+            logger.error(f"Invalid space_id in OAuth callback state: {e}")
+            raise HTTPException(status_code=400, detail="Invalid space_id format")
+
+        # Verify user owns this space (authorization check)
+        from app.db import SearchSpace
+        space_result = await session.execute(
+            select(SearchSpace).where(
+                SearchSpace.id == space_id_uuid,
+                SearchSpace.user_id == user_id
+            )
+        )
+        space = space_result.scalar_one_or_none()
+        if not space:
+            logger.warning(f"User {user_id} attempted to access unauthorized space {space_id}")
+            raise HTTPException(status_code=403, detail="Access denied to this space")
+
         code_verifier = data["code_verifier"]
         auth_header = make_basic_auth_header(
             config.AIRTABLE_CLIENT_ID, config.AIRTABLE_CLIENT_SECRET
@@ -260,9 +281,15 @@ async def airtable_callback(
 
             # Redirect to the frontend success page with validated URL
             try:
+                # Whitelist of allowed connector names (prevents injection)
+                connector_name = "airtable"
+                allowed_connectors = {"airtable"}
+                if connector_name not in allowed_connectors:
+                    raise ValueError(f"Invalid connector name: {connector_name}")
+
                 redirect_url = build_connector_redirect(
                     space_id=str(space_id),
-                    connector_name="airtable",
+                    connector_name=connector_name,
                     success=True,
                 )
                 return RedirectResponse(url=redirect_url)
