@@ -15,7 +15,6 @@ import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
 } from "@/hooks/use-search-source-connectors";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 const normalizeListInput = (value: unknown): string[] => {
 	if (Array.isArray(value)) {
@@ -175,16 +174,14 @@ export function useConnectorEditPage(connectorId: number, searchSpaceId: string)
 			setIsFetchingRepos(true);
 			setFetchedRepos(null);
 			try {
-				const token = localStorage.getItem(AUTH_TOKEN_KEY);
-				if (!token) throw new Error("No auth token");
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
 					{
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
 						},
+					credentials: "include",
 						body: JSON.stringify({ github_pat: values.github_pat }),
 					}
 				);

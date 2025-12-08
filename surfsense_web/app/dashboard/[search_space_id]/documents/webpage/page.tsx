@@ -16,7 +16,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 // URL validation regex - requires valid domain structure while supporting international characters
 // Accepts: localhost, domain.tld format, and percent-encoded URLs
@@ -69,9 +68,9 @@ export default function WebpageCrawler() {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
 				{
 					method: "POST",
+					credentials: "include",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify({
 						document_type: "CRAWLED_URL",

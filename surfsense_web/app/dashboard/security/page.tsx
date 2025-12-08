@@ -26,7 +26,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useUser } from "@/hooks";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 import { authApiService } from "@/lib/apis/auth-api.service";
 import { ValidationError } from "@/lib/error";
 

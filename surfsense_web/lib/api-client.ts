@@ -2,14 +2,16 @@
  * Centralized API client with consistent error handling.
  *
  * This module provides a standardized way to make API requests with:
- * - Automatic authentication token handling
+ * - Automatic authentication via HttpOnly cookies
  * - Consistent error handling and user notifications
  * - Type-safe request/response handling
  * - Automatic redirect on authentication failures
+ *
+ * SECURITY: Uses HttpOnly cookies for authentication instead of Bearer tokens.
+ * Cookies are automatically sent by the browser via credentials: 'include'.
  */
 
 import { toast } from "sonner";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 /**
  * Custom error class for API errors with structured information
@@ -117,33 +119,11 @@ export async function apiRequest<T = any>(
         ...fetchOptions
     } = options;
 
-    // Get authentication token
-    const token = !skipAuth ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
-
-    // Check if authentication is required but missing
-    if (!skipAuth && !token) {
-        const error = new ApiError(401, "Authentication required. Please log in.");
-
-        if (!skipErrorNotification) {
-            toast.error("Authentication Required", {
-                description: "Please log in to continue"
-            });
-        }
-
-        // Throw error for global handler to manage navigation (preserves SPA flow)
-        throw error;
-    }
-
     // Build request headers
     const requestHeaders: HeadersInit = {
         'Content-Type': 'application/json',
         ...headers,
     };
-
-    // Add authentication token if available
-    if (token) {
-        requestHeaders['Authorization'] = `Bearer ${token}`;
-    }
 
     // Make the request
     try {
@@ -152,6 +132,7 @@ export async function apiRequest<T = any>(
             {
                 ...fetchOptions,
                 headers: requestHeaders,
+                credentials: 'include', // Always send cookies for authentication
             }
         );
 

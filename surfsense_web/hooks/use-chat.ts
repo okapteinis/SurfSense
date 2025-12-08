@@ -3,7 +3,6 @@ import { useCallback, useEffect, useState } from "react";
 import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface UseChatStateProps {
 	search_space_id: string;
@@ -22,8 +21,6 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 	const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
 	const [topK, setTopK] = useState<number>(5);
 
-	useEffect(() => {
-		const bearerToken = localStorage.getItem(AUTH_TOKEN_KEY);
 		setToken(bearerToken);
 	}, []);
 
@@ -64,8 +61,8 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 						method: "GET",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
 						},
+					credentials: "include",
 					}
 				);
 
@@ -100,8 +97,8 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 						method: "POST",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
 						},
+					credentials: "include",
 						body: JSON.stringify({
 							type: researchMode,
 							title: "Untitled Chat",
@@ -152,8 +149,8 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 						method: "PUT",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${token}`,
 						},
+					credentials: "include",
 						body: JSON.stringify({
 							type: researchMode,
 							title: title,

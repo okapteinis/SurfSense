@@ -1,7 +1,6 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export type LogLevel = "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL";
 export type LogStatus = "IN_PROGRESS" | "SUCCESS" | "FAILED" | "DISMISSED";
@@ -101,8 +100,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs?${params}`,
 					{
 						headers: {
-							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
+					credentials: "include",
 						method: "GET",
 					}
 				);
@@ -152,8 +151,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 			const response = await fetch(`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs`, {
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 				},
+					credentials: "include",
 				method: "POST",
 				body: JSON.stringify(logData),
 			});
@@ -186,8 +185,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 					{
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
+					credentials: "include",
 						method: "PUT",
 						body: JSON.stringify(updateData),
 					}
@@ -218,8 +217,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "DELETE",
 				}
 			);
@@ -246,8 +245,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/${logId}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "GET",
 				}
 			);
@@ -273,8 +272,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				{
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "POST",
 				}
 			);
@@ -303,8 +302,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				{
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "PATCH",
 				}
 			);
@@ -333,8 +332,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				{
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "POST",
 					body: JSON.stringify(logIds),
 				}
@@ -366,8 +365,8 @@ export function useLogs(searchSpaceId?: number, filters: LogFilters = {}) {
 				{
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "POST",
 					body: JSON.stringify(logIds),
 				}
@@ -423,8 +422,8 @@ export function useLogsSummary(searchSpaceId: number, hours: number = 24) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/logs/search-space/${searchSpaceId}/summary?hours=${hours}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "GET",
 				}
 			);

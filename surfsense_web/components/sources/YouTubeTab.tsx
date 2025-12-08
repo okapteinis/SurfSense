@@ -19,7 +19,6 @@ import {
 	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 const youtubeRegex =
 	/^(https:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})$/;
@@ -71,9 +70,9 @@ export function YouTubeTab({ searchSpaceId }: YouTubeTabProps) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
 				{
 					method: "POST",
+					credentials: "include", // Send cookies for authentication
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify({
 						document_type: "YOUTUBE_VIDEO",

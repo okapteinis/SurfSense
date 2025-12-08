@@ -1,30 +1,23 @@
 /**
  * Authentication utility functions for session management
+ *
+ * SECURITY NOTE: This module uses HttpOnly cookies for authentication.
+ * Tokens are NOT stored in localStorage to prevent XSS attacks.
  */
-
-import { AUTH_TOKEN_KEY } from "./constants";
 
 /**
  * Handle session expiration by redirecting to login
- * Clears the authentication token and redirects the user to the login page
  */
 export function handleSessionExpired(): never {
-	// Clear the token
-	if (typeof window !== "undefined") {
-		localStorage.removeItem(AUTH_TOKEN_KEY);
-	}
-
 	// Redirect to login with error parameter for user feedback
 	window.location.href = "/login?error=session_expired";
 
-	// Throw to stop further execution (this line won't actually run due to redirect)
+	// Throw to stop further execution
 	throw new Error("Session expired: Redirecting to login page");
 }
 
 /**
  * Check if a response indicates an authentication error
- * @param response - The fetch Response object
- * @returns True if the response status is 401
  */
 export function isUnauthorizedResponse(response: Response): boolean {
 	return response.status === 401;
@@ -32,8 +25,6 @@ export function isUnauthorizedResponse(response: Response): boolean {
 
 /**
  * Handle API response with automatic session expiration handling
- * @param response - The fetch Response object
- * @throws Error if response is 401 (after handling session expiration)
  */
 export function handleAuthResponse(response: Response): void {
 	if (isUnauthorizedResponse(response)) {
@@ -42,28 +33,23 @@ export function handleAuthResponse(response: Response): void {
 }
 
 /**
- * Wrapper around fetch that automatically includes authentication headers
+ * Wrapper around fetch that automatically includes credentials (cookies)
  * and handles 401 responses by redirecting to login
  *
- * @param url - The URL to fetch
- * @param options - Standard fetch options
- * @returns The fetch Response
- * @throws Error if unauthorized (after handling session expiration)
+ * SECURITY: Uses HttpOnly cookies for authentication instead of Bearer tokens.
+ * Cookies are automatically sent by the browser via credentials: 'include'.
  */
 export async function authenticatedFetch(
 	url: string,
 	options?: RequestInit
 ): Promise<Response> {
-	const token = typeof window !== "undefined" ? localStorage.getItem(AUTH_TOKEN_KEY) : null;
-
-	const headers = new Headers(options?.headers || {});
-	if (token) {
-		headers.set("Authorization", `Bearer ${token}`);
-	}
-
 	const response = await fetch(url, {
 		...options,
-		headers,
+		credentials: 'include', // Always send cookies
+		headers: {
+			'Content-Type': 'application/json',
+			...options?.headers,
+		},
 	});
 
 	// Handle 401 Unauthorized

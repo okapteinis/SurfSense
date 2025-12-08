@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface LLMConfig {
 	id: number;
@@ -65,10 +64,8 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs?search_space_id=${searchSpaceId}`,
 				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-					},
 					method: "GET",
+					credentials: "include",
 				}
 			);
 
@@ -97,9 +94,9 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs`,
 				{
 					method: "POST",
+					credentials: "include",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify(config),
 				}
@@ -127,9 +124,7 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/${id}`,
 				{
 					method: "DELETE",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-					},
+					credentials: "include",
 				}
 			);
 
@@ -156,9 +151,9 @@ export function useLLMConfigs(searchSpaceId: number | null) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/llm-configs/${id}`,
 				{
 					method: "PUT",
+					credentials: "include",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify(config),
 				}
@@ -207,10 +202,8 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-					},
 					method: "GET",
+					credentials: "include",
 				}
 			);
 
@@ -244,9 +237,9 @@ export function useLLMPreferences(searchSpaceId: number | null) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-spaces/${searchSpaceId}/llm-preferences`,
 				{
 					method: "PUT",
+					credentials: "include",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
 					body: JSON.stringify(newPreferences),
 				}
@@ -297,10 +290,8 @@ export function useGlobalLLMConfigs() {
 			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/global-llm-configs`,
 				{
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-					},
 					method: "GET",
+					credentials: "include",
 				}
 			);
 

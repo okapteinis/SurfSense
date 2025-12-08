@@ -24,7 +24,6 @@ import {
 	type SearchSourceConnector,
 	useSearchSourceConnectors,
 } from "@/hooks/use-search-source-connectors";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export default function GoogleGmailConnectorPage() {
 	const router = useRouter();
@@ -55,9 +54,8 @@ export default function GoogleGmailConnectorPage() {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/auth/google/gmail/connector/add/?space_id=${searchSpaceId}`,
 				{
 					method: "GET",
-					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
-					},
+					credentials: "include",
+					headers: {},
 				}
 			);
 
