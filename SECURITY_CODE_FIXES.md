@@ -3,13 +3,13 @@
 This document tracks code-level security vulnerabilities identified by CodeQL scanning and their resolutions.
 
 **Date:** 2025-12-08
-**Total Vulnerabilities Fixed:** 15 (4 CRITICAL, 10 HIGH, 1 MEDIUM)
+**Total Vulnerabilities Fixed:** 20 (4 CRITICAL, 10 HIGH, 6 MEDIUM)
 
 ---
 
 ## Summary
 
-All 15 CodeQL-identified vulnerabilities have been fixed:
+All 20 CodeQL-identified vulnerabilities have been fixed:
 
 ### Critical Severity (4 issues)
 1. ✅ **Alert #33** - SSRF in `jellyfin_connector.py:117` - FIXED
@@ -29,8 +29,13 @@ All 15 CodeQL-identified vulnerabilities have been fixed:
 13. ✅ **Alert #15** - Incomplete URL substring sanitization in `jira-connector/page.tsx:54` - FIXED
 14. ✅ **Alert #14** - Incomplete URL substring sanitization in `confluence-connector/page.tsx:41` - FIXED
 
-### Medium Severity (1 issue)
+### Medium Severity (6 issues)
 15. ✅ **Alert #23** - Information exposure through exception in `mastodon_add_connector_route.py:181` - FIXED
+16. ✅ **Alert #12** - URL redirection from remote source in `google_gmail_add_connector_route.py:140` - FIXED
+17. ✅ **Alert #10** - URL redirection from remote source in `airtable_add_connector_route.py:262` - FIXED
+18. ✅ **Alert #11** - URL redirection from remote source in `google_calendar_add_connector_route.py:135` - FIXED
+19. ✅ **Alert #31, #30** - Missing workflow permissions in `.github/workflows/security.yml` - FIXED
+20. ✅ **Alert #4, #5, #3** - Missing workflow permissions in `.github/workflows/code-quality.yml` - FIXED
 
 ---
 
@@ -481,6 +486,159 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 ---
 
+### 6. URL Redirection from Remote Source (Alerts #12, #10, #11 - MEDIUM)
+
+**Issue:**
+Redirect URLs constructed from user-controlled configuration values (`config.NEXT_FRONTEND_URL`) without validation could enable open redirect/phishing attacks (CWE-601).
+
+An attacker who can manipulate the `NEXT_FRONTEND_URL` configuration could redirect users to malicious sites after OAuth authentication.
+
+**Files Fixed:**
+- `surfsense_backend/app/routes/google_gmail_add_connector_route.py:140`
+- `surfsense_backend/app/routes/airtable_add_connector_route.py:262`
+- `surfsense_backend/app/routes/google_calendar_add_connector_route.py:135`
+- `surfsense_backend/app/security/redirect_validation.py` (NEW)
+
+**Solution - Redirect Validation Framework:**
+
+**Created Comprehensive Redirect Validator (`redirect_validation.py`):**
+```python
+class RedirectValidator:
+    """Validates redirect URLs to prevent phishing attacks."""
+
+    def __init__(self):
+        self.allowed_domains = self._get_allowed_domains()
+        self.allowed_paths_pattern = re.compile(
+            r"^/dashboard/[a-zA-Z0-9_-]+/connectors/add/[a-zA-Z0-9_-]+-connector$"
+        )
+
+    def build_safe_redirect(
+        self, space_id: str, connector_name: str, success: bool = True
+    ) -> str:
+        """Build a safe redirect URL with validation."""
+        # Validate base URL configuration
+        # Sanitize path components (prevent path traversal)
+        # Build URL with validated components
+        # Final validation before returning
+```
+
+**Fixed OAuth Redirect Pattern (All 3 Routes):**
+```python
+# Before: Vulnerable to open redirect
+return RedirectResponse(
+    url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/google-gmail-connector?success=true"
+)
+
+# After: Validated redirect with safe URL builder
+try:
+    redirect_url = build_connector_redirect(
+        space_id=str(space_id),
+        connector_name="google-gmail",
+        success=True,
+    )
+    return RedirectResponse(url=redirect_url)
+except ValueError as e:
+    logger.error(f"Redirect validation failed: {str(e)}")
+    raise HTTPException(status_code=500, detail="Invalid redirect configuration")
+```
+
+**Security Features:**
+- **Domain Whitelist**: Only allows redirects to configured frontend domain
+- **Path Validation**: Validates redirect path matches expected pattern
+- **Component Sanitization**: Prevents path traversal attacks (removes `..`, `./`)
+- **Configuration Validation**: Validates `NEXT_FRONTEND_URL` at startup
+- **Safe Query Parameters**: Limits error messages to predefined values
+
+**Protection Against:**
+- Open redirect to external phishing sites
+- Path traversal via malicious space_id/connector_name
+- JavaScript protocol injection (`javascript:alert(1)`)
+- Data URI injection (`data:text/html,<script>...`)
+
+**Security Impact:**
+- Prevents phishing attacks post-OAuth
+- Protects user credentials from harvest
+- Validates all redirect destinations
+- Secure-by-default with configuration checks
+
+---
+
+### 7. Missing GitHub Actions Workflow Permissions (Alerts #31, #30, #4, #5, #3 - MEDIUM)
+
+**Issue:**
+GitHub Actions workflows did not explicitly set permissions, potentially granting excessive access via default GITHUB_TOKEN permissions (CWE-275).
+
+Without explicit permissions, workflows inherit repository/organization defaults, which may grant more access than needed, violating the principle of least privilege.
+
+**Files Fixed:**
+- `.github/workflows/security.yml` - 2 jobs fixed (lines 13, 83)
+- `.github/workflows/code-quality.yml` - 3 jobs fixed (lines 128, 200, 291)
+
+**Solution:**
+
+**Applied Least Privilege Permissions:**
+
+**Security Scanning Jobs (`security.yml`):**
+```yaml
+# dependency-scan job (line 13)
+dependency-scan:
+  name: Dependency Vulnerability Scan
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read  # To checkout code
+    security-events: write  # To upload SARIF results
+  steps:
+    - uses: actions/checkout@v4
+    # ... scan steps
+
+# frontend-scan job (line 85)
+frontend-scan:
+  name: Frontend Dependency Scan
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read  # To checkout code
+    security-events: write  # To upload SARIF results
+```
+
+**Code Quality Jobs (`code-quality.yml`):**
+```yaml
+# python-backend job (line 127)
+python-backend:
+  name: Python Backend Quality
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read  # To checkout code
+  if: github.event.pull_request.draft == false
+
+# quality-gate job (line 292)
+quality-gate:
+  name: Quality Gate
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read  # To read workflow results
+  needs: [file-quality, security-scan, python-backend, typescript-frontend]
+```
+
+**Permissions Applied:**
+- **`contents: read`** - Minimum for checkout (all jobs)
+- **`security-events: write`** - Only for SARIF upload (security scans)
+- **No write access** - For jobs that only read/analyze code
+
+**Security Impact:**
+- Reduces attack surface if workflow is compromised
+- Prevents unauthorized code/release modifications
+- Follows GitHub security best practices
+- Explicit over implicit permissions
+- Easier to audit permission usage
+
+**Benefits:**
+- **Principle of Least Privilege**: Jobs only get necessary permissions
+- **Defense in Depth**: Limits damage from compromised workflows
+- **Compliance**: Meets security standards for CI/CD
+- **Transparency**: Clear documentation of permission needs
+
+---
+
 ## Files Modified
 
 ### Backend (Python)
@@ -492,10 +650,18 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 6. `surfsense_backend/app/routes/mastodon_add_connector_route.py` - Exception handling
 7. `surfsense_backend/app/app.py` - Global exception handlers
 8. `surfsense_backend/app/utils/sensitive_data_filter.py` - NEW sanitization utility
+9. `surfsense_backend/app/security/redirect_validation.py` - NEW redirect validation utility
+10. `surfsense_backend/app/routes/google_gmail_add_connector_route.py` - Fixed redirect validation
+11. `surfsense_backend/app/routes/airtable_add_connector_route.py` - Fixed redirect validation
+12. `surfsense_backend/app/routes/google_calendar_add_connector_route.py` - Fixed redirect validation
 
 ### Frontend (TypeScript)
 1. `surfsense_web/app/dashboard/[search_space_id]/connectors/add/jira-connector/page.tsx` - Fixed URL validation
 2. `surfsense_web/app/dashboard/[search_space_id]/connectors/add/confluence-connector/page.tsx` - Fixed URL validation
+
+### GitHub Actions Workflows
+1. `.github/workflows/security.yml` - Added explicit permissions (2 jobs)
+2. `.github/workflows/code-quality.yml` - Added explicit permissions (3 jobs)
 
 ### Documentation
 1. `SECURITY_CODE_FIXES.md` - This file
@@ -510,9 +676,11 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 - ✅ No type errors introduced
 
 ### Security Scans
-- ✅ All 15 CodeQL alerts should be resolved
+- ✅ All 20 CodeQL alerts should be resolved
 - ✅ No new vulnerabilities introduced
 - ✅ Centralized validation and sanitization reduces attack surface
+- ✅ Redirect validation prevents phishing attacks
+- ✅ GitHub Actions follow least privilege principle
 
 ---
 

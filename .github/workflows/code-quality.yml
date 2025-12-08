@@ -127,8 +127,10 @@ jobs:
   python-backend:
     name: Python Backend Quality
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  # To checkout code
     if: github.event.pull_request.draft == false
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -290,9 +292,11 @@ jobs:
   quality-gate:
     name: Quality Gate
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  # To read workflow results
     needs: [file-quality, security-scan, python-backend, typescript-frontend]
     if: always()
-    
+
     steps:
       - name: Check all jobs status
         run: |

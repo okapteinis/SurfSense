@@ -22,6 +22,7 @@ from app.db import (
     get_async_session,
 )
 from app.schemas.airtable_auth_credentials import AirtableAuthCredentialsBase
+from app.security.redirect_validation import build_connector_redirect
 from app.users import current_active_user
 from app.utils.logging_utils import sanitize_error_message
 
@@ -257,10 +258,20 @@ async def airtable_callback(
             await session.commit()
             logger.info(f"Successfully saved Airtable connector for user {user_id}")
 
-            # Redirect to the frontend success page
-            return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/airtable-connector?success=true"
-            )
+            # Redirect to the frontend success page with validated URL
+            try:
+                redirect_url = build_connector_redirect(
+                    space_id=str(space_id),
+                    connector_name="airtable",
+                    success=True,
+                )
+                return RedirectResponse(url=redirect_url)
+            except ValueError as e:
+                logger.error(f"Redirect validation failed: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid redirect configuration",
+                )
 
         except ValidationError as e:
             await session.rollback()
