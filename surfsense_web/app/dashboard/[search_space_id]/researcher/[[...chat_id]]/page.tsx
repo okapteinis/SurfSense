@@ -25,7 +25,6 @@ export default function ResearcherPage() {
 	}, [chatIdParam]);
 
 	const {
-		token,
 		isLoading,
 		setIsLoading,
 		searchMode,
@@ -43,7 +42,6 @@ export default function ResearcherPage() {
 	});
 
 	const { fetchChatDetails, updateChat, createChat } = useChatAPI({
-		token,
 		search_space_id: search_space_id as string,
 	});
 
@@ -106,9 +104,7 @@ export default function ResearcherPage() {
 		api: `${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chat`,
 		streamProtocol: "data",
 		initialMessages: [],
-		headers: {
-			...(token && { Authorization: `Bearer ${token}` }),
-		},
+		credentials: "include",
 		body: {
 			data: {
 				search_space_id: search_space_id,
@@ -145,11 +141,11 @@ export default function ResearcherPage() {
 	};
 
 	useEffect(() => {
-		if (token && !isNewChat && chatIdParam) {
+		if (!isNewChat && chatIdParam) {
 			setIsLoading(true);
 			loadChatData(chatIdParam);
 		}
-	}, [token, isNewChat, chatIdParam]);
+	}, [isNewChat, chatIdParam]);
 
 	// Restore chat state from localStorage on page load
 	useEffect(() => {

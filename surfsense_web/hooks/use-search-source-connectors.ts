@@ -211,6 +211,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	) => {
 		try {
 
+			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
 					method: "PUT",
@@ -244,6 +245,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	 */
 	const deleteConnector = async (connectorId: number) => {
 		try {
+			const response = await fetch(
 
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{

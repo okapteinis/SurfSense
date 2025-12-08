@@ -1,5 +1,5 @@
 import type { Message } from "@ai-sdk/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import type { ChatDetails } from "@/app/dashboard/[search_space_id]/chats/chats-client";
 import type { ResearchMode } from "@/components/chat";
 import type { Document } from "@/hooks/use-documents";
@@ -10,7 +10,6 @@ interface UseChatStateProps {
 }
 
 export function useChatState({ chat_id }: UseChatStateProps) {
-	const [token, setToken] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState(false);
 	const [currentChatId, setCurrentChatId] = useState<string | null>(chat_id || null);
 
@@ -21,12 +20,7 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 	const [selectedDocuments, setSelectedDocuments] = useState<Document[]>([]);
 	const [topK, setTopK] = useState<number>(5);
 
-		setToken(bearerToken);
-	}, []);
-
 	return {
-		token,
-		setToken,
 		isLoading,
 		setIsLoading,
 		currentChatId,
@@ -45,24 +39,21 @@ export function useChatState({ chat_id }: UseChatStateProps) {
 }
 
 interface UseChatAPIProps {
-	token: string | null;
 	search_space_id: string;
 }
 
-export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
+export function useChatAPI({ search_space_id }: UseChatAPIProps) {
 	const fetchChatDetails = useCallback(
 		async (chatId: string): Promise<ChatDetails | null> => {
-			if (!token) return null;
-
 			try {
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chatId)}`,
 					{
 						method: "GET",
+						credentials: "include",
 						headers: {
 							"Content-Type": "application/json",
 						},
-					credentials: "include",
 					}
 				);
 
@@ -76,7 +67,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 				return null;
 			}
 		},
-		[token]
+		[]
 	);
 
 	const createChat = useCallback(
@@ -85,20 +76,15 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 			researchMode: ResearchMode,
 			selectedConnectors: string[]
 		): Promise<string | null> => {
-			if (!token) {
-				console.error("Authentication token not found");
-				return null;
-			}
-
 			try {
 				const response = await fetch(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats`,
 					{
 						method: "POST",
+						credentials: "include",
 						headers: {
 							"Content-Type": "application/json",
 						},
-					credentials: "include",
 						body: JSON.stringify({
 							type: researchMode,
 							title: "Untitled Chat",
@@ -125,7 +111,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 				return null;
 			}
 		},
-		[token, search_space_id]
+		[search_space_id]
 	);
 
 	const updateChat = useCallback(
@@ -135,8 +121,6 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 			researchMode: ResearchMode,
 			selectedConnectors: string[]
 		) => {
-			if (!token) return;
-
 			try {
 				const userMessages = messages.filter((msg) => msg.role === "user");
 				if (userMessages.length === 0) return;
@@ -147,10 +131,10 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/chats/${Number(chatId)}`,
 					{
 						method: "PUT",
+						credentials: "include",
 						headers: {
 							"Content-Type": "application/json",
 						},
-					credentials: "include",
 						body: JSON.stringify({
 							type: researchMode,
 							title: title,
@@ -168,7 +152,7 @@ export function useChatAPI({ token, search_space_id }: UseChatAPIProps) {
 				console.error("Error updating chat:", err);
 			}
 		},
-		[token, search_space_id]
+		[search_space_id]
 	);
 
 	return {
