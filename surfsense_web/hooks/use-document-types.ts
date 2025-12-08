@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface DocumentTypeCount {
 	type: string;
@@ -24,13 +23,7 @@ export const useDocumentTypes = (searchSpaceId?: number, lazy: boolean = false) 
 			try {
 				setIsLoading(true);
 				setError(null);
-				const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-				if (!token) {
-					throw new Error("No authentication token found");
-				}
-
-				// Build URL with optional search_space_id query parameter
 				const url = new URL(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/type-counts`
 				);
@@ -42,8 +35,8 @@ export const useDocumentTypes = (searchSpaceId?: number, lazy: boolean = false) 
 					method: "GET",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
+					credentials: "include",
 				});
 
 				if (!response.ok) {

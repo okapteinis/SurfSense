@@ -15,7 +15,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { GridPattern } from "./GridPattern";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface DocumentUploadTabProps {
 	searchSpaceId: string;
@@ -169,9 +168,8 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
 				{
 					method: "POST",
-					headers: {
-						Authorization: `Bearer ${window.localStorage.getItem(AUTH_TOKEN_KEY)}`,
-					},
+					credentials: "include",
+					headers: {},
 					body: formData,
 				}
 			);

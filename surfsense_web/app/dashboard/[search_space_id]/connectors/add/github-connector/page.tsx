@@ -38,7 +38,6 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EnumConnectorName } from "@/contracts/enums/connector";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 // Assuming useSearchSourceConnectors hook exists and works similarly
 import { useSearchSourceConnectors } from "@/hooks/use-search-source-connectors";
 
@@ -102,18 +101,13 @@ export default function GithubConnectorPage() {
 		setConnectorName(values.name); // Store the name
 		setValidatedPat(values.github_pat); // Store the PAT temporarily
 		try {
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
 			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/github/repositories`,
 				{
 					method: "POST",
+					credentials: "include",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
 					body: JSON.stringify({ github_pat: values.github_pat }),
 				}

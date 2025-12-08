@@ -6,7 +6,7 @@ import { toast } from "sonner";
 import { useSiteConfig } from "@/contexts/SiteConfigContext";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2 } from "lucide-react";
-import { AUTH_TOKEN_KEY, DEFAULT_CONTACT_EMAIL, DEFAULT_COPYRIGHT_TEXT } from "@/lib/constants";
+import { DEFAULT_CONTACT_EMAIL, DEFAULT_COPYRIGHT_TEXT } from "@/lib/constants";
 
 const SOCIAL_MEDIA_FIELDS = [
 	{
@@ -109,19 +109,12 @@ export default function SiteSettingsPage() {
 		const checkSuperuser = async () => {
 			try {
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-				const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-				if (!token) {
-					router.push("/login");
-					return;
-				}
 
 				const response = await fetch(`${backendUrl}/verify-token`, {
 					method: "GET",
 					credentials: "include",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
 				});
 
@@ -226,14 +219,12 @@ export default function SiteSettingsPage() {
 		setIsSaving(true);
 		try {
 			const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
 			const response = await fetch(`${backendUrl}/api/v1/site-config`, {
 				method: "PUT",
 				credentials: "include",
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
 				},
 				body: JSON.stringify(formData),
 			});

@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { normalizeListResponse } from "@/lib/pagination";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface Document {
 	id: number;
@@ -83,8 +82,8 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents?${params.toString()}`,
 					{
 						headers: {
-							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
+					credentials: "include",
 						method: "GET",
 					}
 				);
@@ -164,8 +163,8 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/search?${params.toString()}`,
 					{
 						headers: {
-							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
+					credentials: "include",
 						method: "GET",
 					}
 				);
@@ -198,8 +197,8 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/${documentId}`,
 					{
 						headers: {
-							Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 						},
+					credentials: "include",
 						method: "DELETE",
 					}
 				);
@@ -233,8 +232,8 @@ export function useDocuments(searchSpaceId: number, options?: UseDocumentsOption
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/type-counts?${params.toString()}`,
 				{
 					headers: {
-						Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`,
 					},
+					credentials: "include",
 					method: "GET",
 				}
 			);

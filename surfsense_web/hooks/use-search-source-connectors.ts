@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 export interface SearchSourceConnector {
 	id: number;
@@ -67,13 +66,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 			try {
 				setIsLoading(true);
 				setError(null);
-				const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-				if (!token) {
-					throw new Error("No authentication token found");
-				}
-
-				// Build URL with optional search_space_id query parameter
 				const url = new URL(
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`
 				);
@@ -85,8 +78,8 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 					method: "GET",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
+					credentials: "include",
 				});
 
 				if (!response.ok) {
@@ -177,13 +170,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		spaceId: number
 	) => {
 		try {
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			// Add search_space_id as a query parameter
 			const url = new URL(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors`
 			);
@@ -193,8 +180,8 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
-					Authorization: `Bearer ${token}`,
 				},
+					credentials: "include",
 				body: JSON.stringify(connectorData),
 			});
 
@@ -223,20 +210,14 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		>
 	) => {
 		try {
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
 					method: "PUT",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
+					credentials: "include",
 					body: JSON.stringify(connectorData),
 				}
 			);
@@ -263,20 +244,14 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 	 */
 	const deleteConnector = async (connectorId: number) => {
 		try {
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			const response = await fetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/search-source-connectors/${connectorId}`,
 				{
 					method: "DELETE",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
+					credentials: "include",
 				}
 			);
 
@@ -303,13 +278,7 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 		endDate?: string
 	) => {
 		try {
-			const token = localStorage.getItem(AUTH_TOKEN_KEY);
 
-			if (!token) {
-				throw new Error("No authentication token found");
-			}
-
-			// Build query parameters
 			const params = new URLSearchParams({
 				search_space_id: searchSpaceId.toString(),
 			});
@@ -328,8 +297,8 @@ export const useSearchSourceConnectors = (lazy: boolean = false, searchSpaceId?:
 					method: "POST",
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
+					credentials: "include",
 				}
 			);
 

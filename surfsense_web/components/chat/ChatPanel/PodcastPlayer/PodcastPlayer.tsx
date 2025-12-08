@@ -8,7 +8,6 @@ import type { PodcastItem } from "@/app/dashboard/[search_space_id]/podcasts/pod
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { PodcastPlayerCompactSkeleton } from "./PodcastPlayerCompactSkeleton";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface PodcastPlayerProps {
 	podcast: PodcastItem | null;
@@ -57,11 +56,6 @@ export function PodcastPlayer({
 		const loadPodcast = async () => {
 			setIsFetching(true);
 			try {
-				const token = localStorage.getItem(AUTH_TOKEN_KEY);
-				if (!token) {
-					throw new Error("Authentication token not found.");
-				}
-
 				// Revoke previous object URL if exists
 				if (currentObjectUrlRef.current) {
 					URL.revokeObjectURL(currentObjectUrlRef.current);
@@ -75,9 +69,8 @@ export function PodcastPlayer({
 					const response = await fetch(
 						`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/podcasts/${podcast.id}/stream`,
 						{
-							headers: {
-								Authorization: `Bearer ${token}`,
-							},
+							credentials: "include",
+							headers: {},
 							signal: controller.signal,
 						}
 					);

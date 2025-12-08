@@ -13,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { useGlobalLLMConfigs, useLLMConfigs, useLLMPreferences } from "@/hooks/use-llm-configs";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 const TOTAL_STEPS = 3;
 
@@ -38,14 +37,6 @@ const OnboardPage = () => {
 	const wasCompleteOnMount = useRef<boolean | null>(null);
 	const hasCheckedInitialState = useRef(false);
 
-	// Check if user is authenticated
-	useEffect(() => {
-		const token = localStorage.getItem(AUTH_TOKEN_KEY);
-		if (!token) {
-			router.push("/login");
-			return;
-		}
-	}, [router]);
 
 	// Capture onboarding state on first load
 	useEffect(() => {
