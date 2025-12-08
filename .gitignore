@@ -1,11 +1,13 @@
 .flashrank_cache*
 podcasts/
-.env
-node_modules/
 .ruff_cache/
-# Environment variables and secrets
+
+# Environment variables (NEVER commit these)
+.env
 .env.local
+.env.*.local
 .env.production
+.env.development
 *.env
 
 # SOPS secrets management
@@ -20,7 +22,38 @@ keys.txt
 **/config/global_llm_config.yaml
 **/config/global_llm_config.yaml.backup*
 
-# Python
+# SSH keys (NEVER commit these)
+*.pem
+*.key
+id_rsa*
+id_ed25519*
+*.ppk
+
+# Secrets and credentials
+secrets/
+*.secret
+config.secret.*
+credentials.json
+
+# Database backups and dumps
+*.sql
+*.dump
+
+# Logs (contain sensitive info)
+*.log
+logs/
+*.log.*
+
+# Build artifacts
+.next/
+.turbo/
+dist/
+build/
+out/
+.cache/
+
+# Dependencies
+node_modules/
 __pycache__/
 *.pyc
 *.pyo
@@ -30,34 +63,42 @@ venv/
 .venv/
 env/
 ENV/
+pipenv/
 .pytest_cache/
 
-# Logs and databases
-*.log
+# Database files
 *.db
 *.sqlite
 *.sqlite3
 
-# SSL and keys
-*.pem
-*.key
-*.crt
-
-# OS
-.DS_Store
-Thumbs.db
-
-# IDEs
+# IDE files
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
+.DS_Store
+
+# Deployment backups (local only, not for git)
+*-backup-*.tar.gz
+backups/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
 
 # Uploads and temp files
 uploads/
-temp/
-tmp/
+
+# Coverage reports
+coverage/
+.nyc_output/
+*.lcov
+
+# OS files
+Thumbs.db
+.DS_Store
 
 # Backup files
 *.backup
@@ -67,11 +108,12 @@ pyproject.toml.backup*
 security_audit_baseline*.json
 installed_before_update.txt
 
-# Deployment and production documentation (store privately)
-DEPLOYMENT.md
-sync-from-production.sh
-MIGRATION_LOCAL_LLM.md
-PR_DESCRIPTION.md
+# Production configs (use templates instead)
+nginx.conf
+surfsense-*.service
 
 # Script configuration
 scripts/.config
+sync-from-production.sh
+MIGRATION_LOCAL_LLM.md
+PR_DESCRIPTION.md

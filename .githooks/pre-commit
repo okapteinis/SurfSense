@@ -1,0 +1,40 @@
+#!/bin/bash
+# Pre-commit hook to prevent committing sensitive files
+
+# Colors
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Check for common sensitive files
+sensitive_files=(
+    ".env"
+    ".env.local"
+    ".env.production"
+    "*.pem"
+    "*.key"
+    "id_rsa"
+    "id_ed25519"
+    "*.secret"
+)
+
+# Check staged files (exclude .example files which are templates)
+for pattern in "${sensitive_files[@]}"; do
+    if git diff --cached --name-only | grep -v "\.example$" | grep -q "$pattern"; then
+        echo -e "${RED}ERROR: Attempting to commit sensitive file matching '$pattern'${NC}"
+        echo "Please remove this file from staging:"
+        git diff --cached --name-only | grep -v "\.example$" | grep "$pattern" | while read -r file; do
+            echo "  git reset HEAD $file"
+        done
+        exit 1
+    fi
+done
+
+# Check for hardcoded secrets in code
+if git diff --cached | grep -iE "(api[_-]?key|secret[_-]?key|password|bearer|token)[\"']?\s*[:=]\s*[\"'][^\"']{20,}"; then
+    echo -e "${RED}ERROR: Possible hardcoded secret detected in staged changes${NC}"
+    echo "Review your changes and use environment variables instead."
+    exit 1
+fi
+
+echo "✓ Pre-commit checks passed"
+exit 0
