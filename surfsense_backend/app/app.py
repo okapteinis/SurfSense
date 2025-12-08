@@ -22,6 +22,7 @@ from app.schemas import UserCreate, UserRead, UserUpdate
 from app.services.jsonata_transformer import transformer
 from app.users import SECRET, auth_backend, current_active_user, fastapi_users
 from app.utils.logger import configure_logging, get_logger
+from app.utils.sensitive_data_filter import sanitize_data, sanitize_exception_message
 
 # Configure structured logging at startup
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
@@ -90,14 +91,14 @@ async def global_exception_handler(request: Request, exc: Exception):
     Returns:
         JSONResponse with user-friendly error message
     """
-    # Log full error details (server-side only)
+    # Log full error details (server-side only) with sanitization
     logger.error(
         "Unhandled exception",
         extra={
             "path": str(request.url),
             "method": request.method,
             "error_type": type(exc).__name__,
-            "error_message": str(exc),
+            "error_message": sanitize_exception_message(str(exc)),
             "traceback": traceback.format_exc()
         }
     )
@@ -124,12 +125,12 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     Returns:
         JSONResponse with validation errors
     """
-    # Log validation errors
+    # Log validation errors with sanitization (may contain sensitive user input)
     logger.warning(
         "Request validation failed",
         extra={
             "path": str(request.url),
-            "errors": exc.errors()
+            "errors": sanitize_data(exc.errors())
         }
     )
 

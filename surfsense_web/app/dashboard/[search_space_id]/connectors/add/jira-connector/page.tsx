@@ -54,11 +54,15 @@ const jiraConnectorFormSchema = z.object({
 				try {
 					const parsedUrl = new URL(url);
 					const hostname = parsedUrl.hostname.toLowerCase();
-					// Check if hostname ends with .atlassian.net or contains jira
-					// Using endsWith for domain suffix check prevents bypass attacks
-					return hostname.endsWith(".atlassian.net") ||
-					       hostname === "atlassian.net" ||
-					       hostname.includes("jira");
+					// Check if hostname ends with .atlassian.net
+					if (hostname.endsWith(".atlassian.net") || hostname === "atlassian.net") {
+						return true;
+					}
+					// For self-hosted Jira, check secure patterns only:
+					// - Starts with "jira." (e.g., jira.company.com)
+					// - Contains ".jira." (e.g., company.jira.server.com)
+					// This prevents bypass attacks like "evil-jira.com" or "jira.evil.com"
+					return hostname.startsWith("jira.") || hostname.includes(".jira.");
 				} catch {
 					return false;
 				}

@@ -55,8 +55,9 @@ check_package() {
     local pkg=$1
     local min_version=$2
 
-    if pnpm list "$pkg" 2>/dev/null | grep -q "$pkg@"; then
-        local version=$(pnpm list "$pkg" 2>/dev/null | grep "$pkg@" | head -1 | sed 's/.*@//' | awk '{print $1}')
+    # Check both direct and transitive dependencies (depth=Infinity)
+    if pnpm list --depth=Infinity "$pkg" 2>/dev/null | grep -q "$pkg@"; then
+        local version=$(pnpm list --depth=Infinity "$pkg" 2>/dev/null | grep "$pkg@" | head -1 | sed 's/.*@//' | awk '{print $1}')
         if [ "$(printf '%s\n' "$min_version" "$version" | sort -V | head -n1)" = "$min_version" ]; then
             echo -e "    ${GREEN}✓${NC} $pkg: $version >= $min_version"
         else
@@ -64,7 +65,7 @@ check_package() {
             errors=$((errors+1))
         fi
     else
-        echo -e "    ${YELLOW}⚠${NC} $pkg: not in direct dependencies (may be transitive)"
+        echo -e "    ${YELLOW}⚠${NC} $pkg: not found in dependency tree"
         warnings=$((warnings+1))
     fi
 }

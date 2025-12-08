@@ -109,8 +109,8 @@ class RSSConnector:
         if not validated_ips:
             try:
                 url, validated_ips = await validate_url_safe_for_ssrf(url, allow_private=False)
-            except Exception as e:
-                result["error"] = str(e)
+            except HTTPException as e:
+                result["error"] = e.detail
                 return result
 
         try:
@@ -196,8 +196,8 @@ class RSSConnector:
         if not validated_ips:
             try:
                 url, validated_ips = await validate_url_safe_for_ssrf(url, allow_private=False)
-            except Exception as e:
-                logger.warning(f"Unsafe URL rejected: {url} - {e}")
+            except HTTPException as e:
+                logger.warning(f"Unsafe URL rejected: {url} - {e.detail}")
                 return None, []
 
         try:

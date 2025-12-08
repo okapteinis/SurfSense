@@ -76,8 +76,8 @@ def is_sensitive_value(value: str) -> bool:
     if len(value) > 30 and " " not in value:
         return True
 
-    # Check against known patterns
-    return any(pattern.match(value) for pattern in SENSITIVE_PATTERNS)
+    # Check against known patterns (use search() to find patterns anywhere in string)
+    return any(pattern.search(value) for pattern in SENSITIVE_PATTERNS)
 
 
 def sanitize_email(email: str) -> str:
