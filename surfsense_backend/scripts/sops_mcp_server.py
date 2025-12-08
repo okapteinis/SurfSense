@@ -603,6 +603,10 @@ if __name__ == '__main__':
                 print("Usage: sops_mcp_server.py set <key_path> <value>")
                 sys.exit(1)
             result = manager.set_secret(positional_args[0], positional_args[1])
+            # Redact sensitive value from output unless --show-values is set
+            if not show_values and 'value' in result:
+                result['value'] = redact_value(str(result['value']))
+                result['note'] = "Value set successfully (redacted). Use --show-values to see actual value"
             print(json.dumps(result, indent=2))
         elif command == 'delete':
             if not positional_args:

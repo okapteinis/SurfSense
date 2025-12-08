@@ -29,12 +29,28 @@ class JellyfinConnector:
         """
         Initialize the Jellyfin connector.
 
+        SECURITY: This connector makes HTTP requests to user-provided URLs.
+        To prevent SSRF attacks, validated_ips MUST be provided. Call
+        validate_connector_url() before initializing this connector.
+
         Args:
             server_url: Base URL of the Jellyfin server (e.g., http://localhost:8096)
             api_key: Jellyfin API key for authentication
             user_id: Optional user ID for user-specific data
             validated_ips: Pre-validated IP addresses to prevent DNS rebinding (TOCTOU protection)
+                          REQUIRED for security - obtain from validate_connector_url()
+
+        Raises:
+            ValueError: If validated_ips is not provided
         """
+        # SECURITY: Require validated IPs to prevent SSRF attacks
+        # Callers must use validate_connector_url() before creating connector
+        if not validated_ips:
+            raise ValueError(
+                "validated_ips is required to prevent SSRF attacks. "
+                "Call validate_connector_url() before creating JellyfinConnector."
+            )
+
         self.server_url = server_url.rstrip("/")
         self.api_key = api_key
         self.user_id = user_id

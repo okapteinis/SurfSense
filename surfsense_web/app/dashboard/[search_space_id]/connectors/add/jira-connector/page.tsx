@@ -51,7 +51,17 @@ const jiraConnectorFormSchema = z.object({
 		})
 		.refine(
 			(url) => {
-				return url.includes("atlassian.net") || url.includes("jira");
+				try {
+					const parsedUrl = new URL(url);
+					const hostname = parsedUrl.hostname.toLowerCase();
+					// Check if hostname ends with .atlassian.net or contains jira
+					// Using endsWith for domain suffix check prevents bypass attacks
+					return hostname.endsWith(".atlassian.net") ||
+					       hostname === "atlassian.net" ||
+					       hostname.includes("jira");
+				} catch {
+					return false;
+				}
 			},
 			{
 				message: "Please enter a valid Jira instance URL",

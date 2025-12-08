@@ -10,10 +10,8 @@ Supports:
 
 import asyncio
 import hashlib
-import ipaddress
 import logging
 import re
-import socket
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
 from typing import Any
@@ -23,67 +21,9 @@ import feedparser
 import httpx
 from markdownify import markdownify as md
 
-from app.utils.url_validator import format_ip_for_url
+from app.utils.url_validator import format_ip_for_url, validate_url_safe_for_ssrf
 
 logger = logging.getLogger(__name__)
-
-
-async def is_url_safe(url: str) -> tuple[bool, str]:
-    """
-    Validate that a URL doesn't resolve to private/internal IP addresses.
-
-    Prevents SSRF attacks by rejecting connections to:
-    - Private IP ranges (10.x.x.x, 172.16-31.x.x, 192.168.x.x)
-    - Loopback addresses (127.x.x.x, ::1)
-    - Link-local addresses (169.254.x.x, fe80::/10)
-    - Reserved/special ranges
-
-    Args:
-        url: URL to validate
-
-    Returns:
-        Tuple of (is_safe, error_message)
-    """
-    try:
-        parsed = urlparse(url)
-
-        if not parsed.scheme or parsed.scheme not in ('http', 'https'):
-            return False, "URL must use http or https scheme"
-
-        if not parsed.netloc:
-            return False, "URL must have a valid host"
-
-        # Extract hostname (handle port in netloc)
-        hostname = parsed.hostname
-        if not hostname:
-            return False, "Could not extract hostname from URL"
-
-        # Resolve hostname to IP addresses using async getaddrinfo
-        try:
-            loop = asyncio.get_running_loop()
-            addr_info = await loop.getaddrinfo(hostname, None, family=socket.AF_UNSPEC)
-        except socket.gaierror:
-            return False, "Could not resolve hostname"
-
-        for family, _, _, _, sockaddr in addr_info:
-            ip_str = sockaddr[0]
-            try:
-                ip = ipaddress.ip_address(ip_str)
-
-                # Check for unsafe IP ranges
-                if any((ip.is_private, ip.is_loopback, ip.is_link_local,
-                        ip.is_reserved, ip.is_multicast)):
-                    return False, "URL resolves to a restricted IP address"
-
-            except ValueError:
-                return False, "Invalid IP address in URL"
-
-        return True, ""
-
-    except Exception as e:
-        # Log detailed error server-side, return generic message to user
-        logger.error(f"URL validation error for {url}: {e}")
-        return False, "URL validation failed"
 
 
 class RSSConnector:
@@ -167,9 +107,10 @@ class RSSConnector:
 
         # Validate URL for SSRF protection (unless already validated externally)
         if not validated_ips:
-            is_safe, error_msg = await is_url_safe(url)
-            if not is_safe:
-                result["error"] = error_msg
+            try:
+                url, validated_ips = await validate_url_safe_for_ssrf(url, allow_private=False)
+            except Exception as e:
+                result["error"] = str(e)
                 return result
 
         try:
@@ -253,9 +194,10 @@ class RSSConnector:
         """
         # Validate URL for SSRF protection (unless already validated externally)
         if not validated_ips:
-            is_safe, error_msg = await is_url_safe(url)
-            if not is_safe:
-                logger.warning(f"Unsafe URL rejected: {url} - {error_msg}")
+            try:
+                url, validated_ips = await validate_url_safe_for_ssrf(url, allow_private=False)
+            except Exception as e:
+                logger.warning(f"Unsafe URL rejected: {url} - {e}")
                 return None, []
 
         try:
