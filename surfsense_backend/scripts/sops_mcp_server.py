@@ -22,6 +22,11 @@ from typing import Any
 
 import yaml
 
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.utils.sensitive_data_filter import sanitize_data
+
 # Default paths
 DEFAULT_SECRETS_FILE = "secrets.enc.yaml"
 DEFAULT_PLAINTEXT_FILE = "secrets.yaml"
@@ -544,7 +549,10 @@ def main():
         try:
             request = json.loads(line)
             response = handle_mcp_request(request)
-            print(json.dumps(response), flush=True)
+            # Sanitize response before outputting (removes secrets from logs)
+            # MCP responses should never contain raw secrets in stdout
+            sanitized_response = sanitize_data(response, show_values=False)
+            print(json.dumps(sanitized_response), flush=True)
         except json.JSONDecodeError:
             print(json.dumps({"error": "Invalid JSON"}), flush=True)
         except Exception as e:
