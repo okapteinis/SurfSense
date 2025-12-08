@@ -70,9 +70,10 @@ export function PromptConfigManager({ searchSpaceId }: PromptConfigManagerProps)
 					`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${searchSpaceId}`,
 					{
 						method: "PUT",
+						credentials: "include",
 						headers: {
 							"Content-Type": "application/json",
-							Authorization: `Bearer ${localStorage.getItem("surfsense_bearer_token")}`,
+							
 						},
 						body: JSON.stringify(payload),
 					}
