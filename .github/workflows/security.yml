@@ -12,6 +12,9 @@ jobs:
   dependency-scan:
     name: Dependency Vulnerability Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  # To checkout code
+      security-events: write  # To upload SARIF results
 
     steps:
       - name: Checkout code
@@ -82,6 +85,9 @@ jobs:
   frontend-scan:
     name: Frontend Dependency Scan
     runs-on: ubuntu-latest
+    permissions:
+      contents: read  # To checkout code
+      security-events: write  # To upload SARIF results
 
     steps:
       - name: Checkout code

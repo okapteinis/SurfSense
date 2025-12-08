@@ -22,6 +22,7 @@ from app.db import (
     User,
     get_async_session,
 )
+from app.security.redirect_validation import build_connector_redirect
 from app.users import current_active_user
 
 logger = logging.getLogger(__name__)
@@ -135,10 +136,20 @@ async def gmail_callback(
                 f"Successfully created Gmail connector for user {user_id} with ID {db_connector.id}"
             )
 
-            # Redirect to the frontend success page
-            return RedirectResponse(
-                url=f"{config.NEXT_FRONTEND_URL}/dashboard/{space_id}/connectors/add/google-gmail-connector?success=true"
-            )
+            # Redirect to the frontend success page with validated URL
+            try:
+                redirect_url = build_connector_redirect(
+                    space_id=str(space_id),
+                    connector_name="google-gmail",
+                    success=True,
+                )
+                return RedirectResponse(url=redirect_url)
+            except ValueError as e:
+                logger.error(f"Redirect validation failed: {str(e)}")
+                raise HTTPException(
+                    status_code=500,
+                    detail="Invalid redirect configuration",
+                )
 
         except IntegrityError as e:
             await session.rollback()
