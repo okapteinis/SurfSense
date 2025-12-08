@@ -34,7 +34,6 @@ import { Tilt } from "@/components/ui/tilt";
 import { useUser } from "@/hooks";
 import { useSearchSpaces } from "@/hooks/use-search-spaces";
 import { authenticatedFetch } from "@/lib/auth-utils";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 /**
  * Formats a date string into a readable format
@@ -195,29 +194,16 @@ const DashboardPage = () => {
 	};
 
 	const handleShareSearchSpace = async (id: number, spaceName: string) => {
-		// Check token existence first (Gemini suggestion)
-		const token = localStorage.getItem(AUTH_TOKEN_KEY);
-		if (!token) {
-			toast.error("Authentication token not found. Please log in again.");
-			router.push("/login");
-			return;
-		}
-
 		try {
-			const response = await fetch(
+			const response = await authenticatedFetch(
 				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/searchspaces/${id}/share`,
 				{
 					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
-					},
 					body: JSON.stringify({ is_public: true }),
 				}
 			);
 
 			if (!response.ok) {
-				// Better error handling based on status code (Gemini suggestion)
 				if (response.status === 403) {
 					const errorData = await response.json().catch(() => ({}));
 					toast.error("Permission Denied", {
@@ -231,16 +217,14 @@ const DashboardPage = () => {
 				throw new Error("Failed to share search space");
 			}
 
-			// Refresh the search spaces list after successful sharing
 			refreshSearchSpaces();
 			toast.success("Search space shared successfully", {
 				description: `"${spaceName}" is now publicly accessible to all users.`,
 			});
 		} catch (error) {
 			console.error("Error sharing search space:", error);
-			// Only show generic error if we haven't already shown a specific one
 			if (error instanceof Error && error.message === "Failed to share search space") {
-				return; // Already showed specific error above
+				return;
 			}
 			toast.error("An error occurred while sharing the search space");
 		}

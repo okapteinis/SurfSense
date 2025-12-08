@@ -3,8 +3,10 @@
  */
 
 /**
- * Local storage key for the authentication bearer token
- * Used across auth-utils, hooks, and base-api.service
+ * @deprecated This key is no longer used for authentication.
+ * Authentication now uses HttpOnly cookies for security.
+ * DO NOT use this for new auth-related code.
+ * Only kept for backward compatibility during migration.
  */
 export const AUTH_TOKEN_KEY = "surfsense_bearer_token";
 

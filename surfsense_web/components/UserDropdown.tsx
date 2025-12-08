@@ -3,7 +3,6 @@
 import { BadgeCheck, LogOut, Settings, Shield, ShieldAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 import { CustomUser } from "@/contracts/types";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,19 +23,23 @@ interface UserDropdownProps {
 export function UserDropdown({ user, isAdmin = false }: UserDropdownProps) {
 	const router = useRouter();
 
-	const handleLogout = () => {
+	const handleLogout = async () => {
 		try {
-			if (typeof window !== "undefined") {
-				localStorage.removeItem(AUTH_TOKEN_KEY);
-				router.push("/");
-			}
+			// Call backend logout endpoint to clear HttpOnly cookie
+			const response = await fetch(
+				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/auth/logout`,
+				{
+					method: "POST",
+					credentials: "include", // Send cookies
+				}
+			);
+
+			// Redirect to home regardless of response (fail-safe logout)
+			router.push("/");
 		} catch (error) {
 			console.error("Error during logout:", error);
-			// Optionally, provide user feedback
-			if (typeof window !== "undefined") {
-				alert("Logout failed. Please try again.");
-				router.push("/");
-			}
+			// Always redirect even if logout call fails
+			router.push("/");
 		}
 	};
 

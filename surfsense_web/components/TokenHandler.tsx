@@ -2,25 +2,26 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 
 interface TokenHandlerProps {
-	redirectPath?: string; // Path to redirect after storing token
-	tokenParamName?: string; // Name of the URL parameter containing the token
-	storageKey?: string; // Key to use when storing in localStorage
+	redirectPath?: string; // Path to redirect after authentication
 }
 
 /**
- * Client component that extracts a token from URL parameters and stores it in localStorage
+ * Client component for OAuth callback handling
  *
- * @param redirectPath - Path to redirect after storing token (default: '/')
- * @param tokenParamName - Name of the URL parameter containing the token (default: 'token')
- * @param storageKey - Key to use when storing in localStorage (default: 'auth_token')
+ * IMPORTANT: With HttpOnly cookie authentication, OAuth providers should:
+ * 1. Send the authorization code to the backend
+ * 2. Backend exchanges code for token and sets HttpOnly cookie
+ * 3. Backend redirects to this page with success=true parameter
+ *
+ * This component no longer handles tokens directly in the URL.
+ * If you see tokens in the URL, update your OAuth callback to go to the backend first.
+ *
+ * @param redirectPath - Path to redirect after successful auth (default: '/dashboard')
  */
 const TokenHandler = ({
-	redirectPath = "/",
-	tokenParamName = "token",
-	storageKey = AUTH_TOKEN_KEY,
+	redirectPath = "/dashboard",
 }: TokenHandlerProps) => {
 	const router = useRouter();
 	const searchParams = useSearchParams();
@@ -29,21 +30,22 @@ const TokenHandler = ({
 		// Only run on client-side
 		if (typeof window === "undefined") return;
 
-		// Get token from URL parameters
-		const token = searchParams.get(tokenParamName);
+		// Check if authentication was successful (set by backend redirect)
+		const success = searchParams.get("success");
+		const error = searchParams.get("error");
 
-		if (token) {
-			try {
-				// Store token in localStorage
-				localStorage.setItem(storageKey, token);
-
-				// Redirect to specified path
-				router.push(redirectPath);
-			} catch (error) {
-				console.error("Error storing token in localStorage:", error);
-			}
+		if (error) {
+			// Authentication failed
+			console.error("OAuth authentication failed:", error);
+			router.push(`/login?error=${error}`);
+		} else if (success === "true") {
+			// Authentication successful, cookie already set by backend
+			router.push(redirectPath);
+		} else {
+			// No success or error parameter, redirect to login
+			router.push("/login");
 		}
-	}, [searchParams, tokenParamName, storageKey, redirectPath, router]);
+	}, [searchParams, redirectPath, router]);
 
 	return (
 		<div className="flex items-center justify-center min-h-[200px]">

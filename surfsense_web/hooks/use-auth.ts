@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { AUTH_TOKEN_KEY } from "@/lib/constants";
 import { handleSessionExpired } from "@/lib/auth-utils";
 
 interface User {
@@ -51,23 +50,14 @@ export function useAuth(requireSuperuser = false): AuthState {
 				// Only run on client-side
 				if (typeof window === "undefined") return;
 
-				const token = localStorage.getItem(AUTH_TOKEN_KEY);
-
-				// No token - redirect to login
-				if (!token) {
-					router.push("/login");
-					return;
-				}
-
 				const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "http://localhost:8000";
 
-				// Verify token with backend
+				// Verify session with backend using HttpOnly cookies
 				const response = await fetch(`${backendUrl}/verify-token`, {
 					method: "GET",
-					credentials: "include",
+					credentials: "include", // Send cookies
 					headers: {
 						"Content-Type": "application/json",
-						Authorization: `Bearer ${token}`,
 					},
 				});
 
