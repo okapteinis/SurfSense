@@ -9,6 +9,7 @@ from sqlalchemy.future import select
 
 from app.config import config
 from app.db import LLMConfig, UserSearchSpacePreference
+from app.utils.sensitive_data_filter import sanitize_model_string
 
 # Configure litellm to automatically drop unsupported parameters
 litellm.drop_params = True
@@ -381,20 +382,34 @@ async def validate_llm_config(
         test_message = HumanMessage(content="Hello")
         response = await llm.ainvoke([test_message])
 
+        # Sanitize model string before logging (may contain embedded credentials)
+        safe_model_string = sanitize_model_string(model_string)
+
         # If we got here without exception, the config is valid
         if response and response.content:
-            logger.info(f"Successfully validated LLM config for model: {model_string}")
+            logger.info(
+                "Successfully validated LLM configuration",
+                extra={"model": safe_model_string}
+            )
             return True, ""
         else:
             logger.warning(
-                f"LLM config validation returned empty response for model: {model_string}"
+                "LLM config validation returned empty response",
+                extra={"model": safe_model_string}
             )
             return False, "LLM returned an empty response"
 
     except Exception as e:
-        error_msg = f"Failed to validate LLM configuration: {e!s}"
-        logger.error(error_msg)
-        return False, error_msg
+        # Sanitize model string before logging
+        safe_model_string = sanitize_model_string(model_string) if 'model_string' in locals() else 'unknown'
+        logger.error(
+            "Failed to validate LLM configuration",
+            extra={
+                "model": safe_model_string,
+                "error_type": type(e).__name__
+            }
+        )
+        return False, f"Failed to validate LLM configuration: {type(e).__name__}"
 
 
 async def get_user_llm_instance(

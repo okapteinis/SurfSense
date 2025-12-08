@@ -1,9 +1,12 @@
 from contextlib import asynccontextmanager
 import logging
 import os
+import traceback
 
-from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
@@ -71,6 +74,80 @@ app = FastAPI(lifespan=lifespan)
 # Register shared rate limiter with FastAPI app
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """
+    Global exception handler to prevent stack trace exposure to external users.
+
+    Logs full error details server-side while returning user-friendly error messages.
+
+    Args:
+        request: The request that caused the exception
+        exc: The exception that was raised
+
+    Returns:
+        JSONResponse with user-friendly error message
+    """
+    # Log full error details (server-side only)
+    logger.error(
+        "Unhandled exception",
+        extra={
+            "path": str(request.url),
+            "method": request.method,
+            "error_type": type(exc).__name__,
+            "error_message": str(exc),
+            "traceback": traceback.format_exc()
+        }
+    )
+
+    # Return generic error to user (no stack trace exposure)
+    return JSONResponse(
+        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        content={
+            "error": "Internal server error",
+            "message": "An unexpected error occurred. Please try again later.",
+        }
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handle validation errors without exposing internal details.
+
+    Args:
+        request: The request that failed validation
+        exc: The validation exception
+
+    Returns:
+        JSONResponse with validation errors
+    """
+    # Log validation errors
+    logger.warning(
+        "Request validation failed",
+        extra={
+            "path": str(request.url),
+            "errors": exc.errors()
+        }
+    )
+
+    # Return user-friendly validation errors
+    return JSONResponse(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        content={
+            "error": "Validation error",
+            "message": "The request contains invalid data",
+            "details": [
+                {
+                    "field": ".".join(str(loc) for loc in error["loc"]),
+                    "message": error["msg"]
+                }
+                for error in exc.errors()
+            ]
+        }
+    )
 
 # Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
 # This ensures FastAPI uses HTTPS in redirects when behind a proxy

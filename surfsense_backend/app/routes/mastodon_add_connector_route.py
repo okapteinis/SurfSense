@@ -149,47 +149,74 @@ async def test_mastodon_connection(
 
     Returns:
         Connection status and account info
+
+    Raises:
+        HTTPException: With appropriate status code and user-friendly message
     """
-    # Normalize URL
-    instance_url = instance_url.rstrip("/")
-    if not instance_url.startswith(("http://", "https://")):
-        instance_url = f"https://{instance_url}"
+    try:
+        # Normalize URL
+        instance_url = instance_url.rstrip("/")
+        if not instance_url.startswith(("http://", "https://")):
+            instance_url = f"https://{instance_url}"
 
-    # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
-    instance_url, validated_ips = await validate_connector_url(instance_url, connector_type="Mastodon")
+        # Validate URL to prevent SSRF attacks and get validated IPs for TOCTOU protection
+        instance_url, validated_ips = await validate_connector_url(instance_url, connector_type="Mastodon")
 
-    # Test connection using validated IPs to prevent DNS rebinding
-    mastodon_client = MastodonConnector(
-        instance_url=instance_url,
-        access_token=access_token,
-        validated_ips=validated_ips,
-    )
-
-    account, error = await mastodon_client.verify_credentials()
-    if error:
-        # Log sanitized error server-side for debugging (redact sensitive data)
-        sanitized_error = sanitize_string(str(error))
-        logger.error(f"Mastodon connection failed for user {user.id}: {sanitized_error}")
-        raise HTTPException(
-            status_code=400,
-            detail="Unable to connect to Mastodon instance. Please verify the URL and access token are correct.",
+        # Test connection using validated IPs to prevent DNS rebinding
+        mastodon_client = MastodonConnector(
+            instance_url=instance_url,
+            access_token=access_token,
+            validated_ips=validated_ips,
         )
 
-    # Get instance info
-    instance_info, _ = await mastodon_client.get_instance_info()
+        account, error = await mastodon_client.verify_credentials()
+        if error:
+            # Log sanitized error server-side for debugging (redact sensitive data)
+            sanitized_error = sanitize_string(str(error))
+            logger.error(f"Mastodon connection failed for user {user.id}: {sanitized_error}")
+            raise HTTPException(
+                status_code=400,
+                detail="Unable to connect to Mastodon instance. Please verify the URL and access token are correct.",
+            )
 
-    return {
-        "status": "success",
-        "message": "Successfully connected to Mastodon",
-        "account_info": {
-            "username": account.get("acct", "unknown"),
-            "display_name": account.get("display_name", ""),
-            "followers_count": account.get("followers_count", 0),
-            "following_count": account.get("following_count", 0),
-            "statuses_count": account.get("statuses_count", 0),
-        },
-        "instance_info": {
-            "title": instance_info.get("title", "Unknown") if instance_info else "Unknown",
-            "version": instance_info.get("version", "Unknown") if instance_info else "Unknown",
-        },
-    }
+        # Get instance info
+        instance_info, _ = await mastodon_client.get_instance_info()
+
+        return {
+            "status": "success",
+            "message": "Successfully connected to Mastodon",
+            "account_info": {
+                "username": account.get("acct", "unknown"),
+                "display_name": account.get("display_name", ""),
+                "followers_count": account.get("followers_count", 0),
+                "following_count": account.get("following_count", 0),
+                "statuses_count": account.get("statuses_count", 0),
+            },
+            "instance_info": {
+                "title": instance_info.get("title", "Unknown") if instance_info else "Unknown",
+                "version": instance_info.get("version", "Unknown") if instance_info else "Unknown",
+            },
+        }
+
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is (already user-friendly)
+        raise
+
+    except Exception as e:
+        # Catch-all for unexpected errors
+        # Log full details for debugging (server-side only)
+        logger.error(
+            "Unexpected error in Mastodon connection test",
+            extra={
+                "user_id": user.id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+            exc_info=True  # Include stack trace in server logs
+        )
+
+        # Return generic error to user (no stack trace exposure)
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred while testing the Mastodon connection. Please try again later.",
+        ) from e

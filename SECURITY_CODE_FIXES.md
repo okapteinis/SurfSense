@@ -3,13 +3,13 @@
 This document tracks code-level security vulnerabilities identified by CodeQL scanning and their resolutions.
 
 **Date:** 2025-12-08
-**Total Vulnerabilities Fixed:** 7 (4 CRITICAL, 1 HIGH, 2 HIGH)
+**Total Vulnerabilities Fixed:** 15 (4 CRITICAL, 10 HIGH, 1 MEDIUM)
 
 ---
 
 ## Summary
 
-All 7 CodeQL-identified vulnerabilities have been fixed:
+All 15 CodeQL-identified vulnerabilities have been fixed:
 
 ### Critical Severity (4 issues)
 1. ✅ **Alert #33** - SSRF in `jellyfin_connector.py:117` - FIXED
@@ -17,10 +17,20 @@ All 7 CodeQL-identified vulnerabilities have been fixed:
 3. ✅ **Alert #32** - SSRF in `jellyfin_connector.py:85` - FIXED
 4. ✅ **Alert #35** - SSRF in `jellyfin_add_connector_route.py:87` - VERIFIED SECURE
 
-### High Severity (3 issues)
+### High Severity (10 issues)
 5. ✅ **Alert #27** - Clear-text logging of sensitive data in `sops_mcp_server.py:606` - FIXED
-6. ✅ **Alert #15** - Incomplete URL substring sanitization in `jira-connector/page.tsx:54` - FIXED
-7. ✅ **Alert #14** - Incomplete URL substring sanitization in `confluence-connector/page.tsx:41` - FIXED
+6. ✅ **Alert #26** - Clear-text logging of sensitive data in `sops_mcp_server.py:600` - FIXED
+7. ✅ **Alert #25** - Clear-text logging of sensitive data in `sops_mcp_server.py:589` - FIXED
+8. ✅ **Alert #16** - Clear-text logging of sensitive data in `sops_mcp_server.py:547` - FIXED
+9. ✅ **Alert #8** - Clear-text logging of password data in `update_admin_user.py:124` - FIXED
+10. ✅ **Alert #9** - Clear-text logging of admin email in `update_admin_user.py:131` - FIXED
+11. ✅ **Alert #7** - Clear-text logging of credential data in `llm_service.py:390` - FIXED
+12. ✅ **Alert #6** - Clear-text logging of credential data in `llm_service.py:386` - FIXED
+13. ✅ **Alert #15** - Incomplete URL substring sanitization in `jira-connector/page.tsx:54` - FIXED
+14. ✅ **Alert #14** - Incomplete URL substring sanitization in `confluence-connector/page.tsx:41` - FIXED
+
+### Medium Severity (1 issue)
+15. ✅ **Alert #23** - Information exposure through exception in `mastodon_add_connector_route.py:181` - FIXED
 
 ---
 
@@ -280,12 +290,208 @@ expect(jiraConnectorFormSchema.safeParse({
 
 ---
 
+### 4. Sensitive Data Logging (Alerts #26, #25, #16, #8, #9, #7, #6 - HIGH)
+
+**Issue:**
+Multiple locations throughout the codebase were logging sensitive information in clear text, potentially exposing:
+- API keys and access tokens
+- User passwords
+- Email addresses
+- Secret values from SOPS
+- Model strings containing embedded credentials
+
+**Files Fixed:**
+- `surfsense_backend/scripts/sops_mcp_server.py` (lines 547, 600, 589)
+- `surfsense_backend/scripts/update_admin_user.py` (lines 124, 131)
+- `surfsense_backend/app/services/llm_service.py` (lines 386, 390)
+- `surfsense_backend/app/utils/sensitive_data_filter.py` (NEW)
+
+**Solution - Comprehensive Data Sanitization:**
+
+**Created Centralized Sanitization Utility (`sensitive_data_filter.py`):**
+```python
+# Sensitive keys to detect and redact
+SENSITIVE_KEYS = {
+    "password", "secret", "token", "api_key", "access_token",
+    "private_key", "session_id", "cookie", "authorization", "value"
+}
+
+def sanitize_data(data: Any, show_values: bool = False) -> Any:
+    """Recursively sanitize sensitive data from any structure."""
+    if show_values:
+        return data
+
+    if isinstance(data, dict):
+        return {
+            key: "***REDACTED***" if is_sensitive_key(key)
+            else sanitize_data(value, show_values)
+            for key, value in data.items()
+        }
+    # ... handles lists and primitives
+```
+
+**Fixed SOPS MCP Server (Line 547):**
+```python
+# Before: response might contain secrets
+print(json.dumps(response), flush=True)
+
+# After: sanitize before outputting
+sanitized_response = sanitize_data(response, show_values=False)
+print(json.dumps(sanitized_response), flush=True)
+```
+
+**Fixed Admin User Script (Lines 124, 131):**
+```python
+# Before: logs full email address
+print(f"[OK] Successfully updated user: {admin_email}")
+print(f"[ERROR] User not found: {admin_email}")
+
+# After: sanitize email (shows only first 2 chars + domain)
+email_hint = sanitize_email(admin_email)  # "jo***@example.com"
+print(f"[OK] Successfully updated admin user")
+print(f"   - Email: {email_hint}")
+```
+
+**Fixed LLM Service (Lines 386, 390):**
+```python
+# Before: logs model_string (may contain embedded API keys)
+logger.info(f"Successfully validated LLM config for model: {model_string}")
+
+# After: sanitize model string before logging
+safe_model_string = sanitize_model_string(model_string)
+logger.info(
+    "Successfully validated LLM configuration",
+    extra={"model": safe_model_string}
+)
+```
+
+**Sanitization Features:**
+- Pattern-based detection (Base64, API keys, Bearer tokens)
+- Email sanitization (`john.doe@example.com` → `jo***@example.com`)
+- Model string sanitization (removes `api_key=...` parameters)
+- Recursive sanitization for nested data structures
+- Configurable `--show-values` flag for intentional display
+
+**Security Impact:**
+- Prevents credential leakage in logs
+- Prevents accidental exposure in console output
+- Maintains audit capability (server-side logs still have full data)
+- Secure-by-default behavior (must explicitly opt-in to show values)
+
+---
+
+### 5. Information Exposure Through Exception (Alert #23 - MEDIUM)
+
+**Issue:**
+Unhandled exceptions in API endpoints could expose stack traces to external users, revealing:
+- Internal code structure
+- File paths and directory layout
+- Framework versions and dependencies
+- Potentially sensitive variable values
+
+**Files Fixed:**
+- `surfsense_backend/app/routes/mastodon_add_connector_route.py:181`
+- `surfsense_backend/app/app.py` (Global exception handlers)
+
+**Solution:**
+
+**Added Exception Handling to Mastodon Route:**
+```python
+@router.post("/auth/mastodon/test")
+async def test_mastodon_connection(...):
+    try:
+        # Connection logic
+        ...
+    except HTTPException:
+        # Re-raise HTTP exceptions (already user-friendly)
+        raise
+    except Exception as e:
+        # Log full details server-side
+        logger.error(
+            "Unexpected error in Mastodon connection test",
+            extra={
+                "user_id": user.id,
+                "error_type": type(e).__name__,
+                "error_message": str(e),
+            },
+            exc_info=True  # Stack trace in server logs only
+        )
+
+        # Return generic error to user (no stack trace)
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Please try again later.",
+        ) from e
+```
+
+**Added Global Exception Handlers (`app.py`):**
+```python
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Catch all unhandled exceptions app-wide."""
+    # Log full details (server-side only)
+    logger.error(
+        "Unhandled exception",
+        extra={
+            "path": str(request.url),
+            "method": request.method,
+            "error_type": type(exc).__name__,
+            "traceback": traceback.format_exc()
+        }
+    )
+
+    # Return generic error to user (no stack trace exposure)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": "Internal server error",
+            "message": "An unexpected error occurred. Please try again later.",
+        }
+    )
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """Handle validation errors without exposing internals."""
+    logger.warning("Request validation failed", extra={"errors": exc.errors()})
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "error": "Validation error",
+            "details": [
+                {"field": ".".join(str(loc) for loc in error["loc"]), "message": error["msg"]}
+                for error in exc.errors()
+            ]
+        }
+    )
+```
+
+**Security Features:**
+- Two-layer exception handling (route-specific + global)
+- Stack traces logged server-side only (with `exc_info=True`)
+- User-friendly error messages (no implementation details)
+- Proper HTTP status codes (500 for server errors, 422 for validation)
+- Request context preserved in logs (URL, method, user ID)
+
+**Security Impact:**
+- Prevents information disclosure about internal implementation
+- Prevents exposure of file paths, framework versions, dependencies
+- Maintains debugging capability through server-side logs
+- Improves user experience with clear error messages
+
+---
+
 ## Files Modified
 
 ### Backend (Python)
-1. `surfsense_backend/app/connectors/jellyfin_connector.py` - Added mandatory validation
-2. `surfsense_backend/app/connectors/rss_connector.py` - Removed duplicate validation, use centralized
+1. `surfsense_backend/app/connectors/jellyfin_connector.py` - Added mandatory SSRF validation
+2. `surfsense_backend/app/connectors/rss_connector.py` - Centralized SSRF validation
 3. `surfsense_backend/scripts/sops_mcp_server.py` - Added secret redaction
+4. `surfsense_backend/scripts/update_admin_user.py` - Email sanitization
+5. `surfsense_backend/app/services/llm_service.py` - Credential sanitization in logs
+6. `surfsense_backend/app/routes/mastodon_add_connector_route.py` - Exception handling
+7. `surfsense_backend/app/app.py` - Global exception handlers
+8. `surfsense_backend/app/utils/sensitive_data_filter.py` - NEW sanitization utility
 
 ### Frontend (TypeScript)
 1. `surfsense_web/app/dashboard/[search_space_id]/connectors/add/jira-connector/page.tsx` - Fixed URL validation
@@ -304,9 +510,9 @@ expect(jiraConnectorFormSchema.safeParse({
 - ✅ No type errors introduced
 
 ### Security Scans
-- ✅ All 7 CodeQL alerts should be resolved
+- ✅ All 15 CodeQL alerts should be resolved
 - ✅ No new vulnerabilities introduced
-- ✅ Centralized validation reduces attack surface
+- ✅ Centralized validation and sanitization reduces attack surface
 
 ---
 

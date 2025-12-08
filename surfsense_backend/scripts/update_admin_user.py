@@ -22,14 +22,17 @@ SECURITY WARNING:
     - NEVER hardcode passwords in this script
     - NEVER commit passwords to version control
     - Always use environment variables for sensitive data
+    - Email addresses are sanitized in console output to prevent exposure
 """
 
 import asyncio
 import os
 import sys
 
-# Add the parent directory to path so we can import app modules
+# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from app.utils.sensitive_data_filter import sanitize_email
 
 from dotenv import load_dotenv
 
@@ -121,15 +124,21 @@ async def update_admin_user():
 
             if updated_user:
                 await session.commit()
-                print(f"\n[OK] Successfully updated user: {admin_email}")
+                # Sanitize email for console output to prevent sensitive data exposure
+                email_hint = sanitize_email(admin_email)
+                print(f"\n[OK] Successfully updated admin user")
                 print(f"   - User ID: {updated_user.id}")
-                print("   - Password: Updated to new value")
-                print("   - is_superuser: True")
-                print("   - is_active: True")
-                print("   - is_verified: True")
+                print(f"   - Email: {email_hint}")
+                print("   - Password: Updated ✓")
+                print("   - Permissions: Superuser with full access")
+                print("   - Status: Active and verified")
             else:
-                print(f"\n[ERROR] User not found: {admin_email}")
-                print("   Make sure the email address is correct")
+                # Sanitize email for error messages
+                email_hint = sanitize_email(admin_email)
+                print(f"\n[ERROR] Admin user not found")
+                print(f"   - Email hint: {email_hint}")
+                print("   - Verify the email address in your .env file")
+                print("   - Run 'python -m scripts.list_users' to see all users")
 
                 # List existing users for debugging
                 from sqlalchemy import text
