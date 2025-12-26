@@ -21,24 +21,6 @@ class MessageCheckpointer:
     """
 
 
-        @staticmethod
-    def _normalize_connection_string(conn_string: str) -> str:
-        """Convert asyncpg URL to psycopg3 URL.
-        
-        AsyncPostgresSaver needs a synchronous connection string.
-        Convert: postgresql+asyncpg://... -> postgresql://...
-        
-        Args:
-            conn_string: Raw connection string from config
-        
-        Returns:
-            str: Normalized connection string for psycopg3
-        """
-        if conn_string.startswith("postgresql+asyncpg://"):
-            return conn_string.replace("postgresql+asyncpg://", "postgresql://")
-        if "+asyncpg" in conn_string:
-            return conn_string.replace("+asyncpg", "")
-        return conn_string
     def __init__(
         self,
         connection_string: str,
@@ -296,12 +278,17 @@ async def get_checkpointer(
     
     if _checkpointer_instance is None:
         try:
-            from app.config import config  # Avoid circular imports
-            db_url = connection_string or config.DATABASE_URL
-            _checkpointer_instance = MessageCheckpointer(db_url)
-            await _checkpointer_instance.initialize()
-            _initialized = True
-            logger.info("Global checkpointer instance initialized")
+                from app.config.persistence import get_config            
+                config = get_config()
+                db_url = connection_string or config.database_url
+                _checkpointer_instance = MessageCheckpointer(
+                    connection_string=db_url,
+                    pool_size=config.pool_size,
+                    max_overflow=config.max_overflow,
+                )
+                await _checkpointer_instance.initialize()
+                _initialized = True
+                            logger.info("Global checkpointer instance initialized")
         except Exception as e:
             logger.error(f"Failed to initialize global checkpointer: {e}")
             raise RuntimeError(f"Global checkpointer initialization failed: {e}") from e

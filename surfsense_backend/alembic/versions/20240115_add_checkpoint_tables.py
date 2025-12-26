@@ -69,10 +69,41 @@ def upgrade() -> None:
         unique=False
     )
 
+    # Create trigger function for automatic updated_at updates
+    op.execute("""
+        CREATE OR REPLACE FUNCTION update_updated_at_column()
+        RETURNS TRIGGER AS $$
+        BEGIN
+            NEW.updated_at = now();
+            RETURN NEW;
+        END;
+        $$ language 'plpgsql';
+    """)
+    
+    # Create triggers for each table
+    op.execute("""
+        CREATE TRIGGER update_conversation_checkpoints_updated_at
+        BEFORE UPDATE ON conversation_checkpoints
+        FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+    """)
+    
+    op.execute("""
+        CREATE TRIGGER update_agent_state_snapshots_updated_at
+        BEFORE UPDATE ON agent_state_snapshots
+        FOR EACH ROW EXECUTE PROCEDURE update_updated_at_column();
+    """)
+
+
 
 def downgrade() -> None:
     """Drop checkpoint tables."""
     # Drop indexes
+        
+    # Drop triggers first
+    op.execute("DROP TRIGGER IF EXISTS update_conversation_checkpoints_updated_at ON conversation_checkpoints;")
+    op.execute("DROP TRIGGER IF EXISTS update_agent_state_snapshots_updated_at ON agent_state_snapshots;")
+    op.execute("DROP FUNCTION IF EXISTS update_updated_at_column();")
+
     op.drop_index('idx_checkpoints_timestamp', table_name='conversation_checkpoints')
     op.drop_index('idx_conversation_messages_checkpoint', table_name='conversation_messages')
     
