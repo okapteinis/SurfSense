@@ -20,6 +20,25 @@ class MessageCheckpointer:
     state management for conversation history and agent state recovery.
     """
 
+
+        @staticmethod
+    def _normalize_connection_string(conn_string: str) -> str:
+        """Convert asyncpg URL to psycopg3 URL.
+        
+        AsyncPostgresSaver needs a synchronous connection string.
+        Convert: postgresql+asyncpg://... -> postgresql://...
+        
+        Args:
+            conn_string: Raw connection string from config
+        
+        Returns:
+            str: Normalized connection string for psycopg3
+        """
+        if conn_string.startswith("postgresql+asyncpg://"):
+            return conn_string.replace("postgresql+asyncpg://", "postgresql://")
+        if "+asyncpg" in conn_string:
+            return conn_string.replace("+asyncpg", "")
+        return conn_string
     def __init__(
         self,
         connection_string: str,
@@ -251,3 +270,72 @@ class MessageCheckpointer:
         except Exception as e:
             logger.error(f"Failed to cleanup checkpoints for thread {thread_id}: {e}")
             raise RuntimeError(f"Checkpoint cleanup failed: {e}") from e
+
+
+
+# Global module-level functions for lazy initialization
+_checkpointer_instance: Optional[MessageCheckpointer] = None
+_initialized: bool = False
+
+
+async def get_checkpointer(
+    connection_string: Optional[str] = None,
+) -> MessageCheckpointer:
+    """Get or create the global MessageCheckpointer instance.
+    
+    Args:
+        connection_string: PostgreSQL connection string. Uses DATABASE_URL from config if not provided.
+    
+    Returns:
+        MessageCheckpointer: The global checkpointer instance
+    
+    Raises:
+        RuntimeError: If initialization fails
+    """
+    global _checkpointer_instance, _initialized
+    
+    if _checkpointer_instance is None:
+        try:
+            from app.config import config  # Avoid circular imports
+            db_url = connection_string or config.DATABASE_URL
+            _checkpointer_instance = MessageCheckpointer(db_url)
+            await _checkpointer_instance.initialize()
+            _initialized = True
+            logger.info("Global checkpointer instance initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize global checkpointer: {e}")
+            raise RuntimeError(f"Global checkpointer initialization failed: {e}") from e
+    
+    return _checkpointer_instance
+
+
+async def setup_checkpointer_tables(connection_string: Optional[str] = None) -> None:
+    """Initialize checkpointer tables during app startup.
+    
+    Args:
+        connection_string: Optional PostgreSQL connection string
+    
+    Raises:
+        RuntimeError: If setup fails
+    """
+    try:
+        _checkpointer = await get_checkpointer(connection_string)
+        logger.info("Checkpointer tables setup complete")
+    except Exception as e:
+        logger.error(f"Failed to setup checkpointer tables: {e}")
+        raise
+
+
+async def close_checkpointer() -> None:
+    """Close the global checkpointer instance during app shutdown."""
+    global _checkpointer_instance, _initialized
+    
+    if _checkpointer_instance is not None:
+        try:
+            await _checkpointer_instance.close()
+            _checkpointer_instance = None
+            _initialized = False
+            logger.info("Global checkpointer instance closed")
+        except Exception as e:
+            logger.error(f"Error closing global checkpointer: {e}")
+            raise RuntimeError(f"Failed to close checkpointer: {e}") from e
