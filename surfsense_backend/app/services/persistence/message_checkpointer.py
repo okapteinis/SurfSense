@@ -197,8 +197,7 @@ class MessageCheckpointer:
             checkpoint_id: ID of the checkpoint to delete
             
         Returns:
-            bool: True if deletion was successful
-            
+This method is not yet implemented and will raise NotImplementedError.            
         Raises:
             RuntimeError: If checkpoint deletion fails
         """
@@ -208,8 +207,10 @@ class MessageCheckpointer:
         try:
             async with self.get_saver() as saver:
                 logger.info(f"Checkpoint deletion requested for {thread_id}:{checkpoint_id}")
-                return True
-        except Exception as e:
+raise NotImplementedError(
+                "Checkpoint deletion is not yet implemented. "
+                "This method requires proper cascade deletion support in the database layer."
+            )        except Exception as e:
             logger.error(f"Failed to delete checkpoint {checkpoint_id}: {e}")
             raise RuntimeError(f"Checkpoint deletion failed: {e}") from e
 
