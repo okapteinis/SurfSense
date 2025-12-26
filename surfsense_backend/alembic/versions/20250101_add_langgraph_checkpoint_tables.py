@@ -1,7 +1,7 @@
 """Add LangGraph checkpoint tables for message persistence.
 
 Revision ID: 20250101_langgraph
-Revises: <previous revision>
+Revises: None
 Create Date: 2025-01-01 00:00:00.000000
 
 """
