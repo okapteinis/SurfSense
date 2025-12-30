@@ -176,12 +176,17 @@ app.add_middleware(
 # Add security headers middleware
 # Adds security headers to all responses to protect against common web vulnerabilities
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.middleware.session_refresh import SlidingSessionMiddleware
 
 app.add_middleware(
     SecurityHeadersMiddleware,
     enable_hsts=True,  # Enable HSTS in production
     enable_csp=True,  # Enable Content Security Policy
 )
+
+# Add sliding session middleware
+# Refreshes auth cookie on each request to implement sliding expiration
+app.add_middleware(SlidingSessionMiddleware)
 
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
@@ -258,7 +263,7 @@ async def verify_token(
 
     Authentication:
         - Requires valid JWT token in Authorization header
-        - Token must not be expired (default lifetime: 1 hour)
+        - Token lifetime: 24 hours with sliding expiration (extends on activity)
         - User must be active
 
     Returns:
