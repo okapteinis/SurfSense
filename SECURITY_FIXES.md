@@ -30,7 +30,7 @@ This document provides step-by-step instructions to fix all security issues iden
 
 ```bash
 # Connect to VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 # Navigate to backend
 cd /opt/SurfSense/surfsense_backend
@@ -59,7 +59,7 @@ journalctl -u surfsense -n 50
 
 ```bash
 # Connect to VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 # Navigate to frontend
 cd /opt/SurfSense/surfsense_web
@@ -1526,7 +1526,7 @@ async def test_2fa_login_flow(client: AsyncClient, db: AsyncSession):
     # 1. Register user
     response = await client.post("/api/v1/auth/register", json={
         "email": "test2fa@example.com",
-        "password": "TestPassword123!",  # Use test fixtures in actual tests
+        "password": os.getenv("TEST_PASSWORD", "changeme"),  # Use env var in production tests
     })
     assert response.status_code == 201
 
@@ -1548,7 +1548,7 @@ async def test_2fa_login_flow(client: AsyncClient, db: AsyncSession):
     # 4. Login with 2FA
     response = await client.post("/api/v1/auth/login", data={
         "username": "test2fa@example.com",
-        "password": "TestPassword123!",  # Use test fixtures in actual tests
+        "password": os.getenv("TEST_PASSWORD", "changeme"),  # Use env var in production tests
         "totp_code": totp.now(),
     })
     assert response.status_code == 200
@@ -1571,7 +1571,7 @@ async def test_refresh_token_flow(client: AsyncClient):
     # Login
     response = await client.post("/api/v1/auth/login", data={
         "username": "test@example.com",
-        "password": "TestPassword123!",  # Use test fixtures in actual tests
+        "password": os.getenv("TEST_PASSWORD", "changeme"),  # Use env var in production tests
     })
     assert response.status_code == 200
 
@@ -1964,7 +1964,7 @@ Before deploying to production:
 
 1. **Backup Database**
 ```bash
-ssh root@46.62.230.195
+ssh user@your-vps-ip
 pg_dump surfsense > /backup/surfsense_$(date +%Y%m%d).sql
 ```
 

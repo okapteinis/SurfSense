@@ -22,7 +22,7 @@ This guide covers deploying the authentication security fixes and UI enhancement
 
 ```bash
 # Navigate to project directory
-cd /Users/ojarskapteinis/Documents/Kods
+cd /path/to/your/project
 
 # Create backup with timestamp
 BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
@@ -39,7 +39,7 @@ tar -czf "SurfSense_backup_${BACKUP_DATE}.tar.gz" "SurfSense_backup_${BACKUP_DAT
 
 ```bash
 # SSH to VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 # Create backup
 BACKUP_DATE=$(date +%Y%m%d_%H%M%S)
@@ -66,12 +66,12 @@ tar -czf "SurfSense_backup_${BACKUP_DATE}.tar.gz" "SurfSense_backup_${BACKUP_DAT
 
 ### Local PC
 ```bash
-df -h /Users/ojarskapteinis/Documents/Kods
+df -h /path/to/your/project
 ```
 
 ### VPS
 ```bash
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "df -h /opt && df -h /"
+ssh -i ~/.ssh/your_private_key user@your-vps-ip "df -h /opt && df -h /"
 ```
 
 **Minimum Requirements:**
@@ -86,7 +86,7 @@ ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "df -h /opt && df -h /"
 ### Local PC
 
 ```bash
-cd /Users/ojarskapteinis/Documents/Kods/SurfSense
+cd /path/to/your/project/SurfSense
 
 # Ensure you're on nightly branch
 git checkout nightly
@@ -104,7 +104,7 @@ git log --oneline -5
 ### VPS
 
 ```bash
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 cd /opt/SurfSense
 
@@ -127,7 +127,7 @@ git log --oneline -5
 
 **Local PC:**
 ```bash
-cd /Users/ojarskapteinis/Documents/Kods/SurfSense/surfsense_backend
+cd /path/to/your/project/SurfSense/surfsense_backend
 
 # Activate virtual environment
 source venv/bin/activate
@@ -141,7 +141,7 @@ pip list | grep -E "(fastapi|litellm|langchain|uvicorn)"
 
 **VPS:**
 ```bash
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 cd /opt/SurfSense/surfsense_backend
 
@@ -159,7 +159,7 @@ pip list | head -20
 
 **Local PC:**
 ```bash
-cd /Users/ojarskapteinis/Documents/Kods/SurfSense/surfsense_web
+cd /path/to/your/project/SurfSense/surfsense_web
 
 # Install dependencies
 npm install
@@ -173,7 +173,7 @@ pnpm build
 
 **VPS:**
 ```bash
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 cd /opt/SurfSense/surfsense_web
 
@@ -194,10 +194,10 @@ pnpm build
 
 ```bash
 # Local
-cat /Users/ojarskapteinis/Documents/Kods/SurfSense/surfsense_backend/.env | grep REGISTRATION
+cat /path/to/your/project/SurfSense/surfsense_backend/.env | grep REGISTRATION
 
 # VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 \
+ssh -i ~/.ssh/your_private_key user@your-vps-ip \
   "cat /opt/SurfSense/surfsense_backend/.env | grep REGISTRATION"
 ```
 
@@ -225,10 +225,10 @@ NEXT_PUBLIC_FASTAPI_BACKEND_URL=https://yourdomain.com  # VPS
 
 ```bash
 # Check frontend .env
-cat /Users/ojarskapteinis/Documents/Kods/SurfSense/surfsense_web/.env
+cat /path/to/your/project/SurfSense/surfsense_web/.env
 
 # VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 \
+ssh -i ~/.ssh/your_private_key user@your-vps-ip \
   "cat /opt/SurfSense/surfsense_web/.env"
 ```
 
@@ -238,13 +238,13 @@ ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 \
 
 ```bash
 # Local
-cd /Users/ojarskapteinis/Documents/Kods/SurfSense/surfsense_backend
+cd /path/to/your/project/SurfSense/surfsense_backend
 source venv/bin/activate
 alembic current
 alembic upgrade head
 
 # VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 cd /opt/SurfSense/surfsense_backend
 source venv/bin/activate
 alembic current
@@ -259,7 +259,7 @@ alembic upgrade head
 
 **Backend:**
 ```bash
-cd /Users/ojarskapteinis/Documents/Kods/SurfSense/surfsense_backend
+cd /path/to/your/project/SurfSense/surfsense_backend
 source venv/bin/activate
 
 # Stop existing process (if running)
@@ -271,7 +271,7 @@ uvicorn app.app:app --reload --host 0.0.0.0 --port 8000
 
 **Frontend:**
 ```bash
-cd /Users/ojarskapteinis/Documents/Kods/SurfSense/surfsense_web
+cd /path/to/your/project/SurfSense/surfsense_web
 
 # Stop existing process
 pkill -f "next dev"
@@ -283,7 +283,7 @@ pnpm dev
 ### VPS (Production Services)
 
 ```bash
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 # Restart backend
 systemctl restart surfsense
@@ -369,7 +369,7 @@ Expected response:
 {
   "user": {
     "id": "...",
-    "email": "ojars@kapteinis.lv",
+    "email": "user@example.com",
     "is_superuser": true,
     "is_active": true,
     ...
@@ -453,7 +453,7 @@ DISABLE_REGISTRATION=true
 
 ```bash
 # SSH to VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 cd /opt/SurfSense/surfsense_backend
 source venv/bin/activate
@@ -539,7 +539,7 @@ curl https://yourdomain.com  # VPS
 
 ```bash
 # VPS monitoring
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 # Check memory
 free -h
@@ -631,7 +631,7 @@ If something goes wrong:
 
 ```bash
 # VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/your_private_key user@your-vps-ip
 
 # Stop services
 systemctl stop surfsense surfsense-frontend surfsense-celery surfsense-celery-beat
