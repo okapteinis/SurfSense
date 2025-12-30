@@ -1,5 +1,6 @@
 import hashlib
 import logging
+import os
 import re
 import time
 
@@ -9,7 +10,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import Literal
+from typing import Any, AsyncGenerator, Dict, Literal, Optional
 
 from app.db import User, UserSearchSpacePreference, get_async_session
 from app.dependencies.limiter import limiter
@@ -22,19 +23,25 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/assist", tags=["assist"])
 
-# Task 7: TTL-based response cache
-# Caches responses for 1 hour to reduce LLM costs and improve latency for repeated requests
-# Max 1000 entries to prevent unbounded memory growth
-_response_cache = TTLCache(maxsize=1000, ttl=3600)
-
 # Task 1: slowapi compatibility note
 # slowapi is compatible with FastAPI async endpoints and streaming responses.
 # Tested with FastAPI 0.115+ and works correctly with Server-Sent Events (SSE).
 # The rate limiter uses the first Request parameter to extract client IP.
 
-# Constants for validation (Task 12)
+# Configuration constants (Task 12)
+# Input validation limits
 MAX_INPUT_LENGTH = 10000
 MAX_CONTEXT_LENGTH = 10000
+
+# Cache configuration
+# Environment-configurable for production flexibility
+CACHE_MAX_SIZE = int(os.getenv("AI_ASSIST_CACHE_MAX_SIZE", "1000"))
+CACHE_TTL_SECONDS = int(os.getenv("AI_ASSIST_CACHE_TTL", "3600"))  # 1 hour default
+
+# Task 7: TTL-based response cache
+# Caches responses to reduce LLM costs and improve latency for repeated requests
+# Max size prevents unbounded memory growth, TTL ensures fresh responses
+_response_cache: TTLCache = TTLCache(maxsize=CACHE_MAX_SIZE, ttl=CACHE_TTL_SECONDS)
 
 
 # Task 8: Prompt injection detection
@@ -78,8 +85,28 @@ def contains_prompt_injection(text: str) -> bool:
     return False
 
 
+# Helper function for cache key generation
+def generate_cache_key(command: str, user_input: Optional[str], context: Optional[str]) -> str:
+    """
+    Generate deterministic cache key for request caching.
+
+    Uses SHA256 hash of command, user_input, and context to create a unique
+    key for caching LLM responses. Same inputs always produce the same key.
+
+    Args:
+        command: The command type (draft, improve, shorten, etc.)
+        user_input: User's input text (optional)
+        context: Additional context (optional)
+
+    Returns:
+        64-character hexadecimal cache key (SHA256 hash)
+    """
+    cache_string = f"{command}:{user_input or ''}:{context or ''}"
+    return hashlib.sha256(cache_string.encode()).hexdigest()
+
+
 # Task 10: Extract prompt building logic
-def build_prompt(command: str, user_input: str | None, context: str | None) -> str:
+def build_prompt(command: str, user_input: Optional[str], context: Optional[str]) -> str:
     """
     Build LLM prompt based on command type and inputs.
 
@@ -260,20 +287,28 @@ async def assist(
         )
 
         # Task 7: Check TTL cache first
-        cache_key = hashlib.sha256(
-            f"{request.command}:{request.user_input or ''}:{request.context or ''}".encode()
-        ).hexdigest()
+        cache_key = generate_cache_key(request.command, request.user_input, request.context)
 
-        if cache_key in _response_cache:
-            logger.info(
-                "ai_assist_cache_hit",
+        # Try to retrieve from cache with error handling
+        try:
+            if cache_key in _response_cache:
+                logger.info(
+                    "ai_assist_cache_hit",
+                    cache_key=cache_key,
+                    user_id=str(user.id)
+                )
+                cached_response = _response_cache[cache_key]
+                async def serve_cached() -> AsyncGenerator[str, None]:
+                    yield cached_response
+                return StreamingResponse(serve_cached(), media_type="text/plain")
+        except Exception as cache_error:
+            # Cache read error - log and continue without cache
+            logger.warning(
+                "ai_assist_cache_read_error",
                 cache_key=cache_key,
+                error=str(cache_error),
                 user_id=str(user.id)
             )
-            cached_response = _response_cache[cache_key]
-            async def serve_cached():
-                yield cached_response
-            return StreamingResponse(serve_cached(), media_type="text/plain")
 
         # Get user's first search space to access LLM configuration
         result = await session.execute(
@@ -326,7 +361,7 @@ async def assist(
             raise HTTPException(status_code=400, detail=str(e))
 
         # Stream the response with improved error handling
-        async def generate():
+        async def generate() -> AsyncGenerator[str, None]:
             accumulated_response = ""
             try:
                 # Task 7: Improved streaming error handling
@@ -339,8 +374,17 @@ async def assist(
                     accumulated_response += content
                     yield content
 
-                # Task 7: Cache the complete response
-                _response_cache[cache_key] = accumulated_response
+                # Task 7: Cache the complete response with error handling
+                try:
+                    _response_cache[cache_key] = accumulated_response
+                except Exception as cache_error:
+                    # Cache write error - log but don't fail the request
+                    logger.warning(
+                        "ai_assist_cache_write_error",
+                        cache_key=cache_key,
+                        error=str(cache_error),
+                        user_id=str(user.id)
+                    )
 
                 # Task 8: Enhanced telemetry - Log successful completion with all metrics
                 duration_seconds = time.time() - start_time
@@ -355,14 +399,35 @@ async def assist(
                     cached=False,
                 )
 
+            except TimeoutError as e:
+                # LLM service timeout
+                logger.error(
+                    "ai_assist_timeout",
+                    user_id=str(user.id),
+                    command=request.command,
+                    error=str(e),
+                    exc_info=True
+                )
+                yield "\n\n[Error: Request timed out. The AI service is taking too long to respond. Please try again.]"
+            except ConnectionError as e:
+                # Network/connection issues
+                logger.error(
+                    "ai_assist_connection_error",
+                    user_id=str(user.id),
+                    command=request.command,
+                    error=str(e),
+                    exc_info=True
+                )
+                yield "\n\n[Error: Connection to AI service failed. Please check your network and try again.]"
             except Exception as e:
-                # Task 4, 7: Sanitized error handling
+                # Task 4, 7: Sanitized error handling for other exceptions
                 error_msg = sanitize_exception_message(str(e))
                 logger.error(
                     "ai_assist_streaming_error",
                     user_id=str(user.id),
                     command=request.command,
                     error=error_msg,
+                    error_type=type(e).__name__,
                     exc_info=True
                 )
                 yield "\n\n[Error: Unable to complete the request. Please try again.]"
