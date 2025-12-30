@@ -28,7 +28,8 @@ interface CsrfTokenResponse {
  */
 export async function fetchCsrfToken(): Promise<string> {
 	try {
-		const response = await fetch('/api/csrf-token', {
+		const backendUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || '';
+		const response = await fetch(`${backendUrl}/api/csrf-token`, {
 			method: 'GET',
 			credentials: 'include', // Important: include cookies
 		});
@@ -124,7 +125,8 @@ export async function withCsrfHeaders(
  */
 export async function csrfFetch(
 	url: string,
-	options: RequestInit = {}
+	options: RequestInit = {},
+	_isRetry: boolean = false
 ): Promise<Response> {
 	const method = options.method?.toUpperCase() || 'GET';
 	const requiresCsrf = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(method);
@@ -143,15 +145,20 @@ export async function csrfFetch(
 
 	const response = await fetch(url, options);
 
-	// If we get a CSRF error (403), clear the token and let the caller retry
-	if (response.status === 403) {
+	// If we get a CSRF error (403), clear the token and retry once
+	if (response.status === 403 && !_isRetry) {
 		try {
 			const errorData = await response.clone().json();
 			if (errorData.error === 'CSRF validation failed') {
+				// Clear the old token
 				clearCsrfToken();
+
+				// Fetch a new token and retry the request once
+				console.log('CSRF validation failed, retrying with new token...');
+				return await csrfFetch(url, options, true);
 			}
 		} catch {
-			// Ignore JSON parse errors
+			// Ignore JSON parse errors - return original response
 		}
 	}
 

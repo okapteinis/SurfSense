@@ -425,3 +425,81 @@ GitHub Actions workflow for automated security scanning:
 ---
 
 *Last updated: November 29, 2025*
+
+
+## 🛡️ SECURITY STATUS (Live - Dec 31, 2025)
+| Component | Status | PR/Location |
+|-----------|--------|-------------|
+| **CSRF** | ✅ Live | #296 |
+| **SSRF** | ✅ Live | url_validator.py |
+| **CodeQL** | 9/17 fixed | #295 |
+| **Deps** | ✅ Clean | Next.js 15.5.9 |
+| **Headers** | ✅ Live | HSTS/CSP/X-Frame |
+| **2FA** | ✅ Live | #24 |
+
+
+## 🤖 CLAUDE WORKFLOW v2.0 (50 lines - 75% smaller)
+
+### 🔍 AUTO-START (Every session)
+./security-check.sh && git status --short && echo "🟢 Ready. (check/status/test/pr/push)"
+
+text
+
+### ⚡ QUICK COMMANDS
+| Say | Executes |
+|-----|----------|
+| "check" | `./security-check.sh` |
+| "status" | `git status && ./security-check.sh` |
+| "test" | `cd surfsense_backend && pytest -m security -v` |
+| "pr" | `gh pr create --base nightly --fill` |
+| "push" | Pre-commit + commit/push |
+
+### ✅ PRE-COMMIT (3s)
+git status --short && ./security-check.sh && echo "✅ Commit ready"
+
+text
+
+### 📝 COMMIT TEMPLATE
+feat/[type]: [description]
+
+Changes:
+
+Fixed [X]
+
+Added [Y]
+
+Updated [Z]
+
+Verified:
+
+ security-check.sh ✅
+
+ pytest -m security ✅
+
+ No breaking changes
+
+Closes: #PR
+Co-authored-by: Claude claude@anthropic.com
+
+text
+
+### 🚀 DEPLOY CHECKLIST
+ssh vps "cd /opt/SurfSense && git pull origin nightly && cd surfsense_backend && alembic upgrade head"
+ssh vps "systemctl restart surfsense surfsense-celery surfsense-frontend && systemctl status surfsense"
+
+text
+
+### 📊 DAILY RITUAL
+./security-check.sh # 3x/day: 08:00, 14:00, 20:00
+
+text
+
+### ⚙️ RULES
+1. **Always** start: `./security-check.sh + git status`
+2. **Before** code: Show current git status
+3. **Before** commit: Run checklist  
+4. **Target**: `nightly` branch
+5. **PRs**: `--base nightly --fill`
+
+*Updated: Dec 31, 2025 | PR #296 merged*
+

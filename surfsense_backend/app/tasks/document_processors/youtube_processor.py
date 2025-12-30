@@ -32,6 +32,11 @@ from .base import (
     check_document_by_unique_identifier,
 )
 
+# Constants
+# Use 1000^3 (decimal gigabytes) to match the "GB" naming convention
+# not 1024^3 (binary gibibytes/GiB)
+BYTES_PER_GB = 1_000_000_000
+
 
 def get_youtube_video_id(url: str) -> str | None:
     """
@@ -132,15 +137,13 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Task 2: Make disk space threshold configurable
         min_space_gb = _get_int_from_env("YOUTUBE_MIN_DISK_SPACE_GB", 1, "GB")
-        # Use 1000^3 (decimal gigabytes) to match the "GB" naming convention
-        # not 1024^3 (binary gibibytes/GiB)
-        min_space_bytes = min_space_gb * 1_000_000_000
+        min_space_bytes = min_space_gb * BYTES_PER_GB
 
         stat = shutil.disk_usage(tmp_dir)
         if stat.free < min_space_bytes:
             logger.error(
                 f"Insufficient disk space for video {video_id}: "
-                f"{stat.free / 1_000_000_000:.2f}GB free, need at least {min_space_gb}GB. "
+                f"{stat.free / BYTES_PER_GB:.2f}GB free, need at least {min_space_gb}GB. "
                 f"Free up disk space in temp directory or adjust YOUTUBE_MIN_DISK_SPACE_GB "
                 f"environment variable."
             )
