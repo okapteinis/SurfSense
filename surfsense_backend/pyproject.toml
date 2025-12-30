@@ -43,6 +43,7 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "validators>=0.34.0",
     "youtube-transcript-api>=1.0.3",
+    "yt-dlp>=2024.0.0",
     "litellm>=1.77.5",
     "langchain-litellm>=0.2.3",
     "elasticsearch>=9.1.1",
