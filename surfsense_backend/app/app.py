@@ -239,6 +239,11 @@ from app.routes.jsonata_routes import router as jsonata_router
 
 app.include_router(jsonata_router)
 
+# Include AI assist routes
+from app.routes.assist import router as assist_router
+
+app.include_router(assist_router)
+
 # Include health check routes (no rate limiting, for monitoring/load balancers)
 from app.routes.health_routes import router as health_router
 from app.routes.csrf_routes import router as csrf_router
