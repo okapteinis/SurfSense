@@ -111,7 +111,7 @@ async def add_luma_connector(
         logger.error(f"Unexpected error adding Luma connector: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to add Luma connector: {e!s}",
+            detail="Failed to add Luma connector. Please check your configuration and try again.",
         ) from e
 
 
@@ -166,7 +166,7 @@ async def delete_luma_connector(
         logger.error(f"Unexpected error deleting Luma connector: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to delete Luma connector: {e!s}",
+            detail="Failed to delete Luma connector. Please try again later.",
         ) from e
 
 
@@ -248,5 +248,5 @@ async def test_luma_connector(
         logger.error(f"Unexpected error testing Luma connector: {e!s}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to test Luma connector: {e!s}",
+            detail="Failed to test Luma connector. Please check your configuration and try again.",
         ) from e

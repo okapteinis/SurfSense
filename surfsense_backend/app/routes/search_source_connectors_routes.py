@@ -242,8 +242,9 @@ async def read_search_source_connector(
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to fetch search source connector: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch search source connector: {e!s}"
+            status_code=500, detail="Failed to fetch connector. Please try again later."
         ) from e
 
 
@@ -781,7 +782,7 @@ async def index_connector_content(
             exc_info=True,
         )
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate indexing: {e!s}"
+            status_code=500, detail="Failed to initiate indexing. Please try again later."
         ) from e
 
 

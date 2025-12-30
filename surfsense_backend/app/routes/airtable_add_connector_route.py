@@ -400,6 +400,7 @@ async def refresh_airtable_token(
 
         return connector
     except Exception as e:
+        logger.error(f"Failed to refresh Airtable token: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to refresh Airtable token: {e!s}"
+            status_code=500, detail="Failed to refresh Airtable token. Please re-authenticate."
         ) from e

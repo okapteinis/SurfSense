@@ -5,6 +5,10 @@ on:
     branches: [main, dev]
     types: [opened, synchronize, reopened, ready_for_review]
 
+permissions:
+  contents: read  # To checkout code and read repository contents
+  pull-requests: read  # To read pull request details
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
