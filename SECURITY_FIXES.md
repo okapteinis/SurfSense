@@ -1100,6 +1100,7 @@ async def fetch_github_data(user: User, search_space_id: int):
 # Test script
 import asyncio
 import os
+
 from app.services.encryption_service import encryption_service
 
 async def test_encryption():
@@ -1518,6 +1519,7 @@ nano tests/test_auth_flows.py
 
 ```python
 import os
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
