@@ -78,8 +78,9 @@ async def connect_gmail(space_id: int, user: User = Depends(current_active_user)
         )
         return {"auth_url": auth_url}
     except Exception as e:
+        logger.error(f"Failed to initiate Google OAuth for Gmail: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate Google OAuth: {e!s}"
+            status_code=500, detail="Failed to initiate Google authentication. Please try again later."
         ) from e
 
 

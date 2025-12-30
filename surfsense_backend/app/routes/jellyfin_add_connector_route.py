@@ -111,9 +111,9 @@ async def test_jellyfin_connection(
         )
 
     except Exception as e:
-        logger.error(f"Error testing Jellyfin connection: {e!s}")
+        logger.error(f"Error testing Jellyfin connection: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Error testing connection: {e!s}"
+            status_code=500, detail="Error testing connection. Please check your server URL and API key."
         ) from e
 
 
@@ -180,7 +180,7 @@ async def add_jellyfin_connector(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error adding Jellyfin connector: {e!s}")
+        logger.error(f"Error adding Jellyfin connector: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Error adding connector: {e!s}"
+            status_code=500, detail="Error adding connector. Please check your configuration and try again."
         ) from e

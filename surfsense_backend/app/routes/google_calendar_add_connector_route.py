@@ -49,8 +49,9 @@ def get_google_flow():
             redirect_uri=REDIRECT_URI,
         )
     except Exception as e:
+        logger.error(f"Failed to create Google flow: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to create Google flow: {e!s}"
+            status_code=500, detail="Failed to initialize Google authentication. Please try again later."
         ) from e
 
 
@@ -79,8 +80,9 @@ async def connect_calendar(space_id: int, user: User = Depends(current_active_us
         )
         return {"auth_url": auth_url}
     except Exception as e:
+        logger.error(f"Failed to initiate Google OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to initiate Google OAuth: {e!s}"
+            status_code=500, detail="Failed to initiate Google authentication. Please try again later."
         ) from e
 
 
@@ -195,6 +197,7 @@ async def calendar_callback(
             ) from e
 
     except Exception as e:
+        logger.error(f"Failed to complete Google OAuth: {e!s}", exc_info=True)
         raise HTTPException(
-            status_code=500, detail=f"Failed to complete Google OAuth: {e!s}"
+            status_code=500, detail="Failed to complete Google authentication. Please try again."
         ) from e
