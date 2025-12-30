@@ -28,6 +28,37 @@ router = APIRouter(prefix="/api/v1/assist", tags=["assist"])
 # Tested with FastAPI 0.115+ and works correctly with Server-Sent Events (SSE).
 # The rate limiter uses the first Request parameter to extract client IP.
 
+
+def get_env_int(env_var: str, default: int, unit: str = "") -> int:
+    """
+    Parse an integer from an environment variable with error handling.
+
+    Args:
+        env_var: Environment variable name to read
+        default: Default value if variable is not set or invalid
+        unit: Optional unit suffix for the warning message (e.g., "MB", "seconds")
+
+    Returns:
+        Parsed integer value or default if parsing fails
+
+    Example:
+        >>> get_env_int("CACHE_SIZE", 1000)
+        1000
+        >>> get_env_int("CACHE_TTL", 3600, "seconds")
+        3600
+    """
+    value_str = os.getenv(env_var, str(default))
+    try:
+        return int(value_str)
+    except ValueError:
+        unit_suffix = f" {unit}" if unit else ""
+        logger.warning(
+            f"Invalid {env_var} value '{value_str}', using default {default}{unit_suffix}. "
+            "Ensure the environment variable contains only numeric characters."
+        )
+        return default
+
+
 # Configuration constants (Task 12)
 # Input validation limits
 MAX_INPUT_LENGTH = 10000
@@ -35,23 +66,8 @@ MAX_CONTEXT_LENGTH = 10000
 
 # Cache configuration
 # Environment-configurable for production flexibility
-try:
-    CACHE_MAX_SIZE = int(os.getenv("AI_ASSIST_CACHE_MAX_SIZE", "1000"))
-except ValueError:
-    logger.warning(
-        "Invalid AI_ASSIST_CACHE_MAX_SIZE value, using default 1000. "
-        "Ensure the environment variable contains only numeric characters."
-    )
-    CACHE_MAX_SIZE = 1000
-
-try:
-    CACHE_TTL_SECONDS = int(os.getenv("AI_ASSIST_CACHE_TTL", "3600"))
-except ValueError:
-    logger.warning(
-        "Invalid AI_ASSIST_CACHE_TTL value, using default 3600 seconds. "
-        "Ensure the environment variable contains only numeric characters."
-    )
-    CACHE_TTL_SECONDS = 3600  # 1 hour default
+CACHE_MAX_SIZE = get_env_int("AI_ASSIST_CACHE_MAX_SIZE", 1000)
+CACHE_TTL_SECONDS = get_env_int("AI_ASSIST_CACHE_TTL", 3600, "seconds")
 
 # Task 7: TTL-based response cache
 # Caches responses to reduce LLM costs and improve latency for repeated requests
