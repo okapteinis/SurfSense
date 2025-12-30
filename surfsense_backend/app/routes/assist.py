@@ -168,25 +168,25 @@ class AssistRequest(BaseModel):
 
                  For drafting email replies:
                  ```
-                 Context: "user: Can you help me reset my password?
+                 user: Can you help me reset my password?
                  assistant: Of course! Click the 'Forgot Password' link...
-                 user: Thanks! What about enabling 2FA?"
+                 user: Thanks! What about enabling 2FA?
                  ```
 
                  For generating blog post drafts:
                  ```
-                 Context: "Topic: Introduction to Machine Learning
+                 Topic: Introduction to Machine Learning
                  Audience: Beginners with basic Python knowledge
                  Tone: Educational but friendly
-                 Key points: supervised learning, unsupervised learning, practical examples"
+                 Key points: supervised learning, unsupervised learning, practical examples
                  ```
 
                  For product descriptions:
                  ```
-                 Context: "Product: Wireless Bluetooth Headphones
+                 Product: Wireless Bluetooth Headphones
                  Features: 40-hour battery, noise cancellation, comfortable fit
                  Target audience: Commuters and travelers
-                 Price point: Mid-range ($100-150)"
+                 Price point: Mid-range ($100-150)
                  ```
 
                  **Best Practices:**
@@ -395,7 +395,7 @@ async def assist(
                     input_length=len(request.user_input or ""),
                     context_length=len(request.context or ""),
                     response_length=len(accumulated_response),
-                    duration_seconds=f"{duration_seconds:.2f}",
+                    duration_seconds=round(duration_seconds, 2),  # Numeric for metrics aggregation
                     cached=False,
                 )
 
