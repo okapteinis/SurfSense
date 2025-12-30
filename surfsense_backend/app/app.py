@@ -170,6 +170,36 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
+# ========================================
+# MIDDLEWARE CONFIGURATION
+# ========================================
+# IMPORTANT: Middleware execution order matters!
+#
+# FastAPI/Starlette middleware wraps handlers in reverse order of registration:
+# - First registered middleware = outermost wrapper (runs first on request, last on response)
+# - Last registered middleware = innermost wrapper (runs last on request, first on response)
+#
+# REQUEST FLOW (top to bottom):
+# 1. ProxyHeadersMiddleware - Detects HTTPS from X-Forwarded-Proto (MUST be first!)
+# 2. CORSMiddleware - Validates origin and handles preflight OPTIONS requests
+# 3. SecurityHeadersMiddleware - Adds security headers (HSTS, CSP, etc.)
+# 4. SlidingSessionMiddleware - Refreshes auth cookie based on token expiration
+# 5. Rate limiter - Enforces rate limits (registered separately with exception handler)
+#
+# RESPONSE FLOW (bottom to top):
+# 5. Rate limiter sets rate limit headers
+# 4. SlidingSessionMiddleware refreshes cookie if needed
+# 3. SecurityHeadersMiddleware adds security headers
+# 2. CORSMiddleware adds CORS headers
+# 1. ProxyHeadersMiddleware completes
+#
+# WHY THIS ORDER:
+# - ProxyHeaders MUST be first so cookie_secure flag works correctly behind reverse proxy
+# - CORS must be early to handle preflight requests before other middleware
+# - Security headers should be added to all responses
+# - Session refresh happens after security checks pass
+# ========================================
+
 # Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare, nginx)
 # This ensures FastAPI correctly detects HTTPS when behind a reverse proxy
 # CRITICAL for security: Enables proper Secure cookie flag functionality, ensuring
@@ -200,6 +230,7 @@ app.add_middleware(
 # Adds security headers to all responses to protect against common web vulnerabilities
 from app.middleware.security_headers import SecurityHeadersMiddleware
 from app.middleware.session_refresh import SlidingSessionMiddleware
+from app.users import SECRET
 
 app.add_middleware(
     SecurityHeadersMiddleware,
@@ -209,7 +240,8 @@ app.add_middleware(
 
 # Add sliding session middleware
 # Refreshes auth cookie on each request to implement sliding expiration
-app.add_middleware(SlidingSessionMiddleware)
+# Requires JWT secret key for token decoding and expiration checks
+app.add_middleware(SlidingSessionMiddleware, secret_key=SECRET)
 
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
