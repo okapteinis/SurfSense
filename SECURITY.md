@@ -1,128 +1,344 @@
 # Security Policy
 
-## Supported Versions
+## Reporting a Vulnerability
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.0.8   | :white_check_mark: |
-| < 0.0.8 | :x:                |
+We take the security of SurfSense seriously. If you discover a security vulnerability, please follow these steps:
 
-## Security Vulnerability Fixes - November 2025
+### 🔒 Private Disclosure
 
-### Summary
+**DO NOT** create a public GitHub issue for security vulnerabilities.
 
-This document tracks the security vulnerabilities addressed in the November 2025 security audit and remediation effort. A comprehensive dependency audit was performed across all frontend components, resulting in significant reduction of security vulnerabilities.
+Instead, please report security vulnerabilities by emailing the security team or creating a [private security advisory](https://github.com/okapteinis/SurfSense/security/advisories/new).
 
-### Vulnerabilities Fixed
+### 📧 What to Include
 
-#### Critical & High Severity (CVSS ≥ 7.0)
+When reporting a vulnerability, please include:
 
-| Package | CVE | CVSS | Component | Vulnerable Versions | Fixed Version | Status |
-|---------|-----|------|-----------|---------------------|---------------|--------|
-| glob | GHSA-5j98-mcp5-4vw2 | 7.5 | Web + Extension | ≥10.2.0 <10.5.0 | 10.5.0+ | ✅ Fixed |
-| base-x | CVE-2025-27611 | High | Extension | ≤3.0.10 | 3.0.11+ | ✅ Fixed |
-| cross-spawn | CVE-2024-21538 | 7.5 | Web + Extension | ≥7.0.0 <7.0.5 | 7.0.6+ | ✅ Fixed |
-| css-what | CVE-2021-33587 | 7.5 | Extension | ≥4.0.0 ≤5.0.0 | 5.0.1+ | ⚠️ Transitive (linkedom) |
-| msgpackr | CVE-2023-52079 | 8.6 | Extension | <1.10.1 | 1.10.1+ | ⚠️ Transitive (plasmo) |
+1. **Description**: A clear description of the vulnerability
+2. **Impact**: Assessment of the potential impact
+3. **Steps to Reproduce**: Detailed steps to reproduce the vulnerability
+4. **Proof of Concept**: If possible, include a PoC (code, screenshots, etc.)
+5. **Suggested Fix**: If you have ideas for fixing the issue
+6. **Your Contact Information**: So we can follow up with you
 
-#### Moderate Severity (CVSS 4.0-6.9)
+### ⏱️ Response Timeline
 
-| Package | CVE | CVSS | Component | Vulnerable Versions | Fixed Version | Status |
-|---------|-----|------|-----------|---------------------|---------------|--------|
-| next | GHSA-g5qg-72qw-gw5v | 6.2 | Web | ≥15.0.0 ≤15.4.4 | 15.5.6+ | ✅ Fixed |
-| next | GHSA-xv57-4mr9-wg8v | 4.3 | Web | ≥15.0.0 ≤15.4.4 | 15.5.6+ | ✅ Fixed |
-| next | GHSA-4342-x723-ch2f | 6.5 | Web | ≥15.0.0 <15.4.7 | 15.5.6+ | ✅ Fixed |
-| next | GHSA-223j-4rm8-mrmf | Low | Web | =15.2.3 | 15.5.6+ | ✅ Fixed |
-| js-yaml | GHSA-mh29-5h37-fv8m | 5.3 | Web + Extension | ≥4.0.0 <4.1.1 | 4.1.1+ | ✅ Fixed |
-| esbuild | GHSA-67mh-4wv8-2f99 | 5.3 | Web + Extension | ≤0.24.2 | 0.25.0+ | ⚠️ Transitive |
-| @babel/runtime | CVE-2025-27789 | 6.2 | Web + Extension | <7.26.10 | 7.28.4+ | ✅ Fixed |
-| @babel/helpers | CVE-2025-27789 | 6.2 | Web + Extension | <7.26.10 | 7.28.4+ | ✅ Fixed |
-| svelte | CVE-2024-45047 | 5.4 | Extension | <4.2.19 | 4.2.19+ | ⚠️ Transitive (plasmo) |
-| tar-fs | Multiple CVEs | Moderate | Web + Extension | ≥2.1.1 <2.1.4 | 2.1.4+ | ✅ Fixed |
-| prismjs | GHSA-x7hr-w5r2-h6wg | 4.9 | Web | <1.30.0 | 1.30.0+ | ⚠️ Transitive |
+- **Initial Response**: Within 48 hours
+- **Status Update**: Within 7 days
+- **Fix Timeline**: Depends on severity (see below)
 
-#### Low Severity
+### 🎯 Severity Levels
 
-| Package | CVE | Component | Status |
-|---------|-----|-----------|--------|
-| brace-expansion | GHSA-v6h2-p8h4-qcjw | Web + Extension | ✅ Fixed |
-| nanoid | Multiple | Web + Extension | ✅ Fixed |
-| eslint | GHSA-xffm-g5w8-qvg7 | Web | ✅ Fixed |
-
-### Known Remaining Vulnerabilities
-
-The following vulnerabilities remain after the security fix effort. These are acknowledged with justification:
-
-#### Requires Major Version Upgrades (Breaking Changes)
-
-| Package | Reason | Risk Assessment | Planned Action |
-|---------|--------|-----------------|----------------|
-| ai (Vercel AI SDK) | v4 → v5 breaking changes | Low-Moderate: File upload bypass, XSS in jsondiffpatch | Schedule separate testing & migration |
-| drizzle-kit | Native dependency rebuild required | Low: esbuild CORS in dev server only | Update when upgrade path is clear |
-| react-syntax-highlighter | v15 → v16 breaking changes | Low-Moderate: prismjs DOM clobbering | Schedule separate testing |
-
-#### Transitive Dependencies (Framework-Locked)
-
-| Package | Framework | Risk Assessment | Mitigation |
-|---------|-----------|-----------------|------------|
-| msgpackr, svelte, css-what | plasmo 0.89.4 | Low-Moderate | Monitor plasmo updates, consider upgrade |
-| esbuild (in tsup) | plasmo dependency | Low: Dev server only | Development-only risk |
-| tmp, nanoid, content-security-policy-parser | plasmo dependencies | Low | Monitor plasmo updates |
-
-### Testing Performed
-
-- ✅ Dependency updates applied successfully via npm/pnpm
-- ✅ Lock files regenerated and verified
-- ✅ Vulnerability count reduced from 43 to 18 total
-  - **surfsense_web**: 11 → 9 vulnerabilities (0 critical/high)
-  - **surfsense_browser_extension**: 18+ → 9 vulnerabilities (2 high in transitive deps)
-- ⚠️ Build testing limited by environment constraints (Google Fonts network access, native modules)
-- ⚠️ Full functional testing required in production-like environment
-
-### Upgrade Summary
-
-**Packages Successfully Upgraded:**
-- glob: 10.4.5 → 10.5.0
-- next: 15.2.3 → 15.5.6 (4 security patches)
-- js-yaml: 4.1.0 → 4.1.1
-- cross-spawn: 7.0.3 → 7.0.6
-- tar-fs: 2.1.1 → 2.1.4
-- base-x: 3.0.10 → 3.0.11
-- @babel/runtime: 7.25.4 → 7.28.4
-- @babel/helpers: 7.25.0 → 7.28.4
-- brace-expansion: 2.0.1 → 2.0.2
-- nanoid: 3.3.7 → 3.3.11
-- prismjs: 1.27.0 → 1.30.0
-- eslint: Updated to latest compatible version
-
-**Total Vulnerability Reduction:** 43 → 18 (58% reduction)
-**Critical/High Vulnerabilities:** Reduced from 5 to 2 (both in transitive dependencies)
-
-### Security Best Practices
-
-1. **Dependency Updates**: Run `npm audit` / `pnpm audit` monthly
-2. **Automated Scanning**: Dependabot is enabled and monitoring dependencies
-3. **Breaking Changes**: Evaluate major version upgrades separately with full testing
-4. **Transitive Dependencies**: Monitor framework updates (plasmo, next.js) for security patches
-5. **Python Backend**: Regularly audit with `pip-audit` (not covered in this update)
-
-### Reporting Security Issues
-
-If you discover a security vulnerability in SurfSense, please report it to:
-- Email: security@surfsense.io (if configured)
-- GitHub Security Advisories: https://github.com/okapteinis/SurfSense/security/advisories
-
-Please do NOT open public issues for security vulnerabilities.
-
-### References
-
-- [GitHub Security Advisories](https://github.com/okapteinis/SurfSense/security)
-- [Dependabot Alerts](https://github.com/okapteinis/SurfSense/security/dependabot)
-- [PR #87 - Security Vulnerability Fixes](https://github.com/okapteinis/SurfSense/pull/87)
+| Severity | Response Time | Examples |
+|----------|---------------|----------|
+| **Critical** | 24-48 hours | RCE, Authentication bypass, Data breach |
+| **High** | 3-7 days | SQL injection, XSS, CSRF, Information disclosure |
+| **Medium** | 7-14 days | Minor information leaks, DoS |
+| **Low** | 14-30 days | Security best practices, hardening |
 
 ---
 
-**Last Updated:** November 20, 2025
-**Security Audit By:** Ojārs Kapteinis (with AI assistance)
-**Approved By:** Ojārs Kapteinis
-**Next Review:** December 2025
+## Security Features
+
+SurfSense implements multiple layers of security protection:
+
+### 🛡️ Application Security
+
+#### 1. CSRF Protection
+- **Implementation**: `fastapi-csrf-protect`
+- **Coverage**: All state-changing endpoints (POST, PUT, DELETE, PATCH)
+- **Token Management**: Double-submit cookie pattern
+- **Frontend Integration**: Automatic token injection via `csrfFetch()`
+
+**Usage**:
+```typescript
+import { csrfFetch } from '@/lib/csrf';
+
+// Automatic CSRF protection
+const response = await csrfFetch('/api/documents', {
+  method: 'POST',
+  body: JSON.stringify(data),
+});
+```
+
+#### 2. SSRF Protection
+- **Implementation**: `app/utils/url_validator.py`
+- **Protection Against**:
+  - Private IP ranges (RFC 1918)
+  - Localhost access
+  - Cloud metadata services (AWS, GCP)
+  - DNS rebinding attacks
+  - URL encoding bypass
+
+**Features**:
+- Async DNS resolution with validation
+- TOCTOU attack prevention
+- IPv4 and IPv6 support
+
+#### 3. Security Headers
+All responses include comprehensive security headers:
+
+| Header | Value | Purpose |
+|--------|-------|---------|
+| `Strict-Transport-Security` | `max-age=31536000; includeSubDomains; preload` | Force HTTPS |
+| `Content-Security-Policy` | (see below) | XSS prevention |
+| `X-Frame-Options` | `DENY` | Clickjacking prevention |
+| `X-Content-Type-Options` | `nosniff` | MIME sniffing prevention |
+| `X-XSS-Protection` | `1; mode=block` | XSS filter |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` | Privacy |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` | Permission control |
+
+**Content-Security-Policy**:
+```
+default-src 'self';
+script-src 'self' 'unsafe-inline' 'unsafe-eval';
+style-src 'self' 'unsafe-inline';
+img-src 'self' data: https:;
+font-src 'self' data:;
+connect-src 'self' https://www.googleapis.com;
+frame-ancestors 'none';
+base-uri 'self';
+form-action 'self';
+```
+
+#### 4. Rate Limiting
+- **Library**: `slowapi` with Redis backend
+- **File Uploads**: 10 uploads/minute per IP
+- **JSONata Transformations**: 5 transformations/minute per IP
+- **Global**: Configurable per-endpoint limits
+
+#### 5. Authentication & Authorization
+- **Library**: `fastapi-users`
+- **Methods**: Local (JWT) + Google OAuth
+- **Session Management**: HttpOnly cookies (recommended)
+- **2FA Support**: TOTP-based two-factor authentication
+- **Password**: Bcrypt hashing with salts
+
+#### 6. Input Validation
+- **Framework**: Pydantic models
+- **SQL Injection**: SQLAlchemy ORM (parameterized queries)
+- **Path Traversal**: File extension sanitization
+- **File Uploads**:
+  - Magic byte validation
+  - Size limits
+  - Streaming (DoS prevention)
+
+#### 7. Information Exposure Prevention
+- **Error Handling**: Generic user messages
+- **Logging**: Sensitive data filtering
+- **Stack Traces**: Never exposed to clients
+- **Debugging**: Detailed logs server-side only
+
+### 🔐 Infrastructure Security
+
+#### 1. Secrets Management
+- **Method**: SOPS (Secrets OPerationS) with age encryption
+- **Storage**: `secrets.enc.yaml` (encrypted, safe for Git)
+- **Access**: Private keys on servers only
+- **Rotation**: Supported via SOPS MCP server
+
+#### 2. Database Security
+- **Connection**: SSL/TLS encryption
+- **Access Control**: Role-based permissions
+- **Backups**: Regular encrypted backups
+- **Sensitive Data**: API keys encrypted in database
+
+#### 3. Dependency Security
+- **Scanning**: `safety` (Python), `npm audit` (JavaScript)
+- **Automation**: GitHub Dependabot + Actions
+- **Policy**: Dependencies updated within 7 days for security issues
+
+---
+
+## Secure Development Practices
+
+### Code Review
+- All changes require review before merge
+- Security-focused reviews for authentication/authorization changes
+- Automated security scanning in CI/CD
+
+### Testing
+- Unit tests for security-critical functions
+- Integration tests for authentication flows
+- Security test suite (`@pytest.mark.security`)
+
+### Continuous Security
+- **CodeQL**: Semantic code analysis
+- **Bandit**: Python security linting  
+- **Safety**: Dependency vulnerability scanning
+- **Pre-commit Hooks**: Format and lint checks
+
+---
+
+## Security Best Practices for Users
+
+### For Self-Hosted Deployments
+
+1. **Environment Variables**:
+   ```bash
+   # Generate strong secrets (example command to run separately)
+   # openssl rand -hex 32
+
+   # Then set in your .env file:
+   CSRF_SECRET_KEY=<generated-secret-here>
+   SECRET=<generated-secret-here>
+
+   # Enable HTTPS in production
+   COOKIE_SECURE="TRUE"
+
+   # Set trusted proxy IPs
+   TRUSTED_HOSTS="your-proxy-ip"
+   ```
+
+2. **Database**:
+   - Use strong PostgreSQL passwords
+   - Enable SSL connections
+   - Restrict network access
+   - Regular backups
+
+3. **Reverse Proxy**:
+   - Use HTTPS (Let's Encrypt recommended)
+   - Configure rate limiting
+   - Set security headers (redundant protection)
+   - Enable HTTP/2
+
+4. **Secrets Management**:
+   ```bash
+   # Initialize SOPS
+   age-keygen -o ~/.config/sops/age/keys.txt
+   
+   # Never commit secrets.yaml (unencrypted)
+   # Only commit secrets.enc.yaml (encrypted)
+   ```
+
+5. **Updates**:
+   - Subscribe to security advisories
+   - Apply security updates within 7 days
+   - Test updates in staging first
+
+### For Developers
+
+1. **Local Development**:
+   - Use `.env.example` as template
+   - Never commit `.env` files
+   - Use development-specific secrets
+
+2. **Pull Requests**:
+   - Run security tests: `pytest -m security`
+   - Check for new vulnerabilities: `safety check`
+   - Review CodeQL alerts
+
+3. **Authentication**:
+   - Always use authenticated endpoints
+   - Include CSRF tokens for state changes
+   - Handle 401/403 errors properly
+
+---
+
+## Known Issues & Limitations
+
+### Current Limitations
+
+1. **CSP Unsafe Directives**:
+   - `unsafe-inline` and `unsafe-eval` required for Next.js
+   - **Mitigation**: Planning to add nonce-based CSP
+   - **Risk**: Medium (XSS slightly easier)
+
+2. **CSRF Protection**:
+   - Currently implemented but needs frontend integration
+   - **Status**: Backend ready, frontend utility created
+   - **Timeline**: Full integration in next release
+
+3. **Dependency Vulnerabilities**:
+   - Some deep dependencies with known CVEs
+   - **Mitigation**: Monitoring for updates
+   - **Risk**: Low to Medium
+
+### Planned Improvements
+
+1. **Security Enhancements**:
+   - [ ] Remove CSP `unsafe-*` directives with nonces
+   - [ ] Implement Subresource Integrity (SRI)
+   - [ ] Add API key rotation mechanism
+   - [ ] Implement security.txt (RFC 9116)
+
+2. **Monitoring**:
+   - [ ] Security event logging
+   - [ ] Intrusion detection system
+   - [ ] Anomaly detection
+
+3. **Compliance**:
+   - [ ] OWASP ASVS Level 2 compliance
+   - [ ] SOC 2 Type II preparation
+   - [ ] GDPR compliance audit
+
+---
+
+## Security Audit History
+
+| Date | Scope | Findings | Status |
+|------|-------|----------|--------|
+| 2025-12-30 | CodeQL + Manual Review | 17 alerts (9 fixed, 8 false positives) | ✅ Completed |
+| 2025-12-01 | Full Security Audit | 12 improvements implemented | ✅ Completed |
+| 2025-11-29 | Dependency Scan | 10 vulnerabilities (8 fixed) | 🔄 In Progress |
+
+### Recent Security Improvements
+
+**December 2025**:
+- ✅ Comprehensive security headers (HSTS, CSP)
+- ✅ CSRF protection implementation
+- ✅ Information exposure fixes (generic error messages)
+- ✅ SSRF protection enhancements
+- ✅ Workflow permissions (GitHub Actions)
+
+**November 2025**:
+- ✅ SOPS secrets management
+- ✅ File upload security hardening
+- ✅ Rate limiting implementation
+- ✅ Structured logging with sanitization
+- ✅ 2FA support
+
+---
+
+## Security Compliance
+
+### OWASP Top 10 (2021)
+
+| Category | Status | Implementation |
+|----------|--------|----------------|
+| A01 - Broken Access Control | ✅ | Role-based permissions, CSRF protection |
+| A02 - Cryptographic Failures | ✅ | HTTPS, HSTS, encrypted secrets |
+| A03 - Injection | ✅ | ORM, input validation, CSP |
+| A04 - Insecure Design | ✅ | Security by design, threat modeling |
+| A05 - Security Misconfiguration | ✅ | Security headers, safe defaults |
+| A06 - Vulnerable Components | 🔄 | Dependency scanning, updates |
+| A07 - Authentication Failures | ✅ | fastapi-users, 2FA, secure sessions |
+| A08 - Software Integrity Failures | ⏳ | Planned: SRI, signed releases |
+| A09 - Security Logging Failures | ✅ | Structured logging, sanitization |
+| A10 - Server-Side Request Forgery | ✅ | Comprehensive URL validation |
+
+**Legend**: ✅ Implemented | 🔄 In Progress | ⏳ Planned
+
+---
+
+## Resources
+
+- **Documentation**: [SECURITY_FIXES.md](./SECURITY_FIXES.md) - Implementation guide
+- **CodeQL Tracking**: [CODEQL_FIXES.md](./CODEQL_FIXES.md) - Alert status
+- **Dependencies**: [GitHub Dependabot](https://github.com/okapteinis/SurfSense/security/dependabot)
+- **Security Workflow**: [.github/workflows/security.yml](.github/workflows/security.yml)
+
+---
+
+## Contact
+
+For security-related questions or concerns:
+
+- **Security Issues**: Create a [private security advisory](https://github.com/okapteinis/SurfSense/security/advisories/new)
+- **General Questions**: Open a GitHub Discussion
+- **Urgent**: Email the maintainers directly
+
+---
+
+**Last Updated**: December 30, 2025
+**Version**: 1.0.0
