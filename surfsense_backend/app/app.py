@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 import os
+import subprocess
 import traceback
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -45,6 +46,25 @@ async def lifespan(app: FastAPI):
         template_count=len(CONNECTOR_TEMPLATES),
         connectors=list(CONNECTOR_TEMPLATES.keys()),
     )
+
+    # Task 2: Check ffmpeg availability for YouTube audio extraction
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            check=True,
+            timeout=5
+        )
+        logger.info("ffmpeg detected successfully - YouTube videos without subtitles can use audio transcription")
+    except FileNotFoundError:
+        logger.warning(
+            "ffmpeg not found - YouTube videos without subtitles will fail. "
+            "Install ffmpeg to enable audio transcription fallback."
+        )
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"ffmpeg check failed: {e}")
+    except subprocess.TimeoutError:
+        logger.warning("ffmpeg version check timed out")
 
     yield
 
