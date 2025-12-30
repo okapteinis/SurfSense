@@ -1,6 +1,5 @@
 import hashlib
 import logging
-import os
 import re
 import time
 
@@ -14,7 +13,7 @@ from typing import Literal
 
 from app.db import User, UserSearchSpacePreference, get_async_session
 from app.dependencies.limiter import limiter
-from app.services.llm_service import get_user_llm_instance
+from app.services.llm_service import get_user_llm_instance, LLMRole
 from app.users import current_active_user
 from app.utils.logger import get_logger
 from app.utils.sensitive_data_filter import sanitize_exception_message
@@ -309,7 +308,7 @@ async def assist(
         #     "casual": get_user_llm_instance,     # Quality matters
         # }
         llm = await get_user_llm_instance(
-            session, str(user.id), preference.search_space_id
+            session, str(user.id), preference.search_space_id, role=LLMRole.LONG_CONTEXT
         )
 
         if not llm:
