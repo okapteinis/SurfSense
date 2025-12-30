@@ -73,6 +73,8 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         YOUTUBE_AUDIO_QUALITY: Audio bitrate in kbps (default: 96)
             Lower quality reduces file size and processing time but may impact
             transcription accuracy for noisy audio. 96kbps is optimized for speech.
+        YOUTUBE_MAX_FILESIZE_MB: Maximum audio file size in MB (default: 500)
+            Prevents resource exhaustion from extremely large audio files.
 
     Args:
         video_url: Full YouTube video URL
@@ -111,7 +113,7 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         min_space_gb = int(os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1"))
         # Use 1000^3 (decimal gigabytes) to match the "GB" naming convention
         # not 1024^3 (binary gibibytes/GiB)
-        min_space_bytes = min_space_gb * 1000 * 1000 * 1000
+        min_space_bytes = min_space_gb * 1_000_000_000
 
         stat = shutil.disk_usage(tmp_dir)
         if stat.free < min_space_bytes:
@@ -132,8 +134,11 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         # transcription accuracy for noisy audio. 96kbps is optimized for speech.
         audio_quality = os.getenv("YOUTUBE_AUDIO_QUALITY", "96")
 
-        # Define max filesize as constant to use in both config and error messages
-        MAX_AUDIO_FILESIZE_BYTES = 500_000_000  # 500MB limit to prevent resource exhaustion
+        # Task 6: Make max filesize configurable
+        # Configure via YOUTUBE_MAX_FILESIZE_MB environment variable (default: 500MB)
+        # Prevents resource exhaustion from extremely large audio files
+        max_filesize_mb = int(os.getenv("YOUTUBE_MAX_FILESIZE_MB", "500"))
+        MAX_AUDIO_FILESIZE_BYTES = max_filesize_mb * 1_000_000
 
         # Task 6: Add max filesize limit & Task 3: Configurable quality
         ydl_opts = {
@@ -160,11 +165,9 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
                 # Task 7: Check for filesize limit errors specifically
                 error_str = str(e).lower()
                 if "filesize" in error_str or "file size" in error_str or "too large" in error_str:
-                    # Calculate limit in MB from bytes for error message
-                    limit_mb = MAX_AUDIO_FILESIZE_BYTES / 1_000_000
                     logger.error(
-                        f"Video {video_id} audio exceeds configured size limit ({limit_mb:.0f}MB), "
-                        f"cannot process. Adjust max_filesize if needed."
+                        f"Video {video_id} audio exceeds configured size limit ({max_filesize_mb}MB). "
+                        f"Adjust YOUTUBE_MAX_FILESIZE_MB environment variable if needed."
                     )
                 else:
                     logger.error(f"yt-dlp failed to download video {video_id}: {e}")
