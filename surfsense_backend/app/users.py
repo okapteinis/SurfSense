@@ -65,8 +65,27 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 
 def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
-    # SECURITY: Token lifetime set to 1 hour for better security
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
+    """
+    Configure JWT authentication strategy for user sessions.
+
+    SECURITY & SESSION BEHAVIOR:
+    - Token lifetime: 24 hours with sliding expiration (extends on activity)
+    - Sessions are STATELESS (JWT-based): All session data is stored in the token itself
+    - NO server-side session storage: Server restarts do NOT invalidate existing tokens
+    - Tokens remain valid until expiration even after server restart (expected behavior)
+    - Users stay logged in as long as they're active within 24h windows
+    - Sliding session refreshes cookie when <50% lifetime remains (12h threshold)
+
+    IMPORTANT: If a user logs in and the server restarts within 24 hours,
+    their session remains valid because the JWT token is stored client-side
+    and contains all necessary authentication information. This is the intended
+    JWT behavior and provides better scalability than server-side sessions.
+
+    To invalidate sessions on restart, implement token revocation with Redis/database.
+    """
+    # SECURITY: 24h lifetime balances user experience with security
+    # Consider refresh token pattern for enhanced security in the future
+    return JWTStrategy(secret=SECRET, lifetime_seconds=86400)
 
 
 # SECURE COOKIE AUTH - HttpOnly cookies prevent XSS attacks
@@ -99,7 +118,7 @@ class CustomCookieTransport(CookieTransport):
 
 
 cookie_transport = CustomCookieTransport(
-    cookie_max_age=3600,  # 1 hour
+    cookie_max_age=86400,  # 24 hours - sliding session refreshes on activity
     cookie_name="surfsense_auth",
     cookie_httponly=True,  # SECURITY: Prevents JavaScript access (XSS protection)
     cookie_secure=config.COOKIE_SECURE,  # SECURITY: Configurable HTTPS requirement

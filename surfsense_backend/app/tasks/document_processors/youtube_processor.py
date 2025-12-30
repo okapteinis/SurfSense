@@ -2,16 +2,24 @@
 YouTube video document processor.
 """
 
+import asyncio
 import logging
+import os
+import shutil
+import subprocess
+import tempfile
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
+import yt_dlp
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
+from yt_dlp.utils import DownloadError
 
 from app.db import Document, DocumentType
 from app.services.llm_service import get_user_long_context_llm
+from app.services.stt_service import stt_service
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
@@ -49,6 +57,158 @@ def get_youtube_video_id(url: str) -> str | None:
         if parsed_url.path.startswith("/v/"):
             return parsed_url.path.split("/")[2]
     return None
+
+
+logger = logging.getLogger(__name__)
+
+
+def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
+    """
+    Download audio from YouTube video and transcribe using STT service.
+
+    This function runs synchronously and should be called via asyncio.to_thread().
+
+    Configuration (via environment variables):
+        YOUTUBE_MIN_DISK_SPACE_GB: Minimum free disk space in GB (default: 1)
+        YOUTUBE_AUDIO_QUALITY: Audio bitrate in kbps (default: 96)
+            Lower quality reduces file size and processing time but may impact
+            transcription accuracy for noisy audio. 96kbps is optimized for speech.
+
+    Args:
+        video_url: Full YouTube video URL
+        video_id: YouTube video ID for logging
+
+    Returns:
+        Dictionary with 'text' (transcribed text) and 'language' (detected language),
+        or empty dict if transcription fails. Empty dict allows fallback to subtitle
+        transcription if available.
+    """
+    logger.info(f"Extracting audio and transcribing video {video_id}")
+
+    # Task 6: Check ffmpeg availability - warn instead of error to allow subtitle fallback
+    try:
+        subprocess.run(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            check=True,
+            timeout=10  # Task 8: Increased from 5s to prevent false negatives on slow systems
+        )
+    except FileNotFoundError:
+        logger.warning(
+            "ffmpeg not found - YouTube STT fallback unavailable. "
+            "Install ffmpeg to enable audio transcription for videos without subtitles."
+        )
+        return {}
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"ffmpeg check failed: {e}. STT fallback unavailable.")
+        return {}
+    except subprocess.TimeoutExpired:
+        logger.warning("ffmpeg version check timed out. STT fallback may be unavailable.")
+        return {}
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        # Task 2: Make disk space threshold configurable
+        min_space_gb = int(os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1"))
+        min_space_bytes = min_space_gb * 1024 * 1024 * 1024
+
+        stat = shutil.disk_usage(tmp_dir)
+        if stat.free < min_space_bytes:
+            logger.error(
+                f"Insufficient disk space for video {video_id}: "
+                f"{stat.free / 1_000_000_000:.2f}GB free, need at least {min_space_gb}GB. "
+                f"Free up disk space in temp directory or adjust YOUTUBE_MIN_DISK_SPACE_GB "
+                f"environment variable."
+            )
+            return {}
+
+        # Task 1: Fix audio path construction - use explicit base path
+        audio_base = os.path.join(tmp_dir, "audio")
+        audio_path = audio_base + ".wav"
+
+        # Task 3: Make audio quality configurable
+        # Lower quality reduces file size and processing time but may impact
+        # transcription accuracy for noisy audio. 96kbps is optimized for speech.
+        audio_quality = os.getenv("YOUTUBE_AUDIO_QUALITY", "96")
+
+        # Task 6: Add max filesize limit & Task 3: Configurable quality
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "wav",
+                    "preferredquality": audio_quality,
+                }
+            ],
+            "outtmpl": audio_base,  # No extension - yt-dlp adds it
+            "quiet": True,
+            "no_warnings": True,
+            "max_filesize": 500_000_000,  # 500MB limit to prevent resource exhaustion
+        }
+
+        try:
+            # Task 7 & 11: Download audio with specific error handling
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([video_url])
+            except DownloadError as e:
+                # Task 7: Check for filesize limit errors specifically
+                error_str = str(e).lower()
+                if "filesize" in error_str or "file size" in error_str or "too large" in error_str:
+                    logger.error(
+                        f"Video {video_id} audio exceeds configured size limit (500MB), "
+                        f"cannot process. Adjust max_filesize if needed."
+                    )
+                else:
+                    logger.error(f"yt-dlp failed to download video {video_id}: {e}")
+                return {}
+
+            # Verify audio file was created
+            if not os.path.exists(audio_path):
+                logger.error(
+                    f"Audio file not found after download for video {video_id}"
+                )
+                return {}
+
+            # Log file size for monitoring
+            file_size = os.path.getsize(audio_path)
+            logger.info(
+                f"Downloaded audio for video {video_id}: "
+                f"{file_size / 1_000_000:.2f}MB"
+            )
+
+            # Task 7: Separate STT error handling from download errors
+            try:
+                logger.info(f"Transcribing audio for video {video_id}")
+                result = stt_service.transcribe_file(audio_path)
+
+                transcript_text = result.get("text", "")
+                language = result.get("language", "unknown")
+
+                logger.info(
+                    f"Successfully transcribed {len(transcript_text)} characters "
+                    f"from video {video_id} (detected language: {language})"
+                )
+
+                # Task 8: Return language info for storage
+                return {
+                    "text": transcript_text,
+                    "language": language
+                }
+
+            except Exception as e:
+                logger.error(
+                    f"STT transcription failed for video {video_id}: {e}",
+                    exc_info=True
+                )
+                return {}
+
+        except Exception as e:
+            logger.error(
+                f"Unexpected error during audio extraction for video {video_id}: {e}",
+                exc_info=True,
+            )
+            return {}
 
 
 async def add_youtube_video_document(
@@ -159,12 +319,67 @@ async def add_youtube_video_document(
                 },
             )
         except Exception as e:
-            transcript_text = f"No captions available for this video. Error: {e!s}"
+            # No subtitles available - attempt STT fallback
             await task_logger.log_task_progress(
                 log_entry,
-                f"No transcript available for video: {video_id}",
-                {"stage": "transcript_unavailable", "error": str(e)},
+                f"No subtitles found for video {video_id}, attempting STT transcription",
+                {"stage": "stt_fallback_attempt", "subtitle_error": str(e)},
             )
+            logger.info(
+                f"No subtitles found for video {video_id}, attempting STT transcription"
+            )
+
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+
+            # Task 4: Add timeout handling for large video downloads (15 minutes)
+            try:
+                stt_result = await asyncio.wait_for(
+                    asyncio.to_thread(
+                        extract_audio_and_transcribe, video_url, video_id
+                    ),
+                    timeout=900.0  # 15 minutes
+                )
+            except asyncio.TimeoutError:
+                logger.error(
+                    f"STT transcription timed out for video {video_id} after 15 minutes"
+                )
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"STT transcription timed out for video {video_id}",
+                    {"stage": "stt_transcription_timeout"},
+                )
+                stt_result = {}
+
+            # Task 8: Extract text and detected language from result
+            transcript_text = stt_result.get("text", "")
+            detected_language = stt_result.get("language", "unknown")
+
+            if transcript_text:
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Successfully obtained transcript via STT for video {video_id}",
+                    {
+                        "stage": "stt_transcription_success",
+                        "transcript_length": len(transcript_text),
+                        "detected_language": detected_language,
+                    },
+                )
+                logger.info(
+                    f"Successfully obtained transcript via STT for video {video_id} "
+                    f"(detected language: {detected_language})"
+                )
+                # Task 8: Store detected language in video metadata
+                video_data["detected_language"] = detected_language
+            else:
+                transcript_text = f"No captions available for this video. Subtitle error: {e!s}. STT transcription also failed."
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"STT transcription also failed for video {video_id}",
+                    {"stage": "stt_transcription_failed"},
+                )
+                logger.warning(
+                    f"STT transcription also failed for video {video_id}"
+                )
 
         # Format document
         await task_logger.log_task_progress(

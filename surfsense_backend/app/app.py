@@ -1,6 +1,7 @@
 from contextlib import asynccontextmanager
 import logging
 import os
+import subprocess
 import traceback
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -45,6 +46,25 @@ async def lifespan(app: FastAPI):
         template_count=len(CONNECTOR_TEMPLATES),
         connectors=list(CONNECTOR_TEMPLATES.keys()),
     )
+
+    # Task 2: Check ffmpeg availability for YouTube audio extraction
+    try:
+        result = subprocess.run(
+            ["ffmpeg", "-version"],
+            capture_output=True,
+            check=True,
+            timeout=10  # Longer timeout prevents false negatives on slow systems or during high load
+        )
+        logger.info("ffmpeg detected successfully - YouTube videos without subtitles can use audio transcription")
+    except FileNotFoundError:
+        logger.warning(
+            "ffmpeg not found - YouTube videos without subtitles will fail. "
+            "Install ffmpeg to enable audio transcription fallback."
+        )
+    except subprocess.CalledProcessError as e:
+        logger.warning(f"ffmpeg check failed: {e}")
+    except subprocess.TimeoutExpired:
+        logger.warning("ffmpeg version check timed out after 10 seconds")
 
     yield
 
@@ -150,10 +170,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
-# Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
-# This ensures FastAPI uses HTTPS in redirects when behind a proxy
-# SECURITY: Only trust specific proxy hosts in production
-# Set TRUSTED_HOSTS env var to comma-separated list of trusted proxy IPs
+# Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare, nginx)
+# This ensures FastAPI correctly detects HTTPS when behind a reverse proxy
+# CRITICAL for security: Enables proper Secure cookie flag functionality, ensuring
+# authentication cookies are only sent over HTTPS connections
+# The middleware reads X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Host headers
+# SECURITY: Only trust specific proxy hosts in production (ai.kapteinis.lv, localhost)
+# Set TRUSTED_HOSTS env var to comma-separated list of trusted proxy IPs/hosts
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.TRUSTED_HOSTS)
 
 # Add CORS middleware
@@ -176,12 +199,17 @@ app.add_middleware(
 # Add security headers middleware
 # Adds security headers to all responses to protect against common web vulnerabilities
 from app.middleware.security_headers import SecurityHeadersMiddleware
+from app.middleware.session_refresh import SlidingSessionMiddleware
 
 app.add_middleware(
     SecurityHeadersMiddleware,
     enable_hsts=True,  # Enable HSTS in production
     enable_csp=True,  # Enable Content Security Policy
 )
+
+# Add sliding session middleware
+# Refreshes auth cookie on each request to implement sliding expiration
+app.add_middleware(SlidingSessionMiddleware)
 
 app.include_router(
     fastapi_users.get_auth_router(auth_backend), prefix="/auth/jwt", tags=["auth"]
@@ -263,7 +291,7 @@ async def verify_token(
 
     Authentication:
         - Requires valid JWT token in Authorization header
-        - Token must not be expired (default lifetime: 1 hour)
+        - Token lifetime: 24 hours with sliding expiration (extends on activity)
         - User must be active
 
     Returns:
