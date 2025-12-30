@@ -150,10 +150,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         }
     )
 
-# Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare)
-# This ensures FastAPI uses HTTPS in redirects when behind a proxy
-# SECURITY: Only trust specific proxy hosts in production
-# Set TRUSTED_HOSTS env var to comma-separated list of trusted proxy IPs
+# Add ProxyHeaders middleware FIRST to trust proxy headers (e.g., from Cloudflare, nginx)
+# This ensures FastAPI correctly detects HTTPS when behind a reverse proxy
+# CRITICAL for security: Enables proper Secure cookie flag functionality, ensuring
+# authentication cookies are only sent over HTTPS connections
+# The middleware reads X-Forwarded-Proto, X-Forwarded-For, X-Forwarded-Host headers
+# SECURITY: Only trust specific proxy hosts in production (ai.kapteinis.lv, localhost)
+# Set TRUSTED_HOSTS env var to comma-separated list of trusted proxy IPs/hosts
 app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=config.TRUSTED_HOSTS)
 
 # Add CORS middleware
