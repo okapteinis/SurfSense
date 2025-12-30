@@ -61,6 +61,27 @@ def get_youtube_video_id(url: str) -> str | None:
 
 logger = logging.getLogger(__name__)
 
+def _get_int_from_env(var_name: str, default: int, unit: str) -> int:
+    """Helper function to safely parse integer environment variables.
+    
+    Args:
+        var_name: Environment variable name
+        default: Default value if parsing fails
+        unit: Unit label for error messages (e.g., 'GB', 'MB')
+    
+    Returns:
+        Parsed integer value or default if invalid
+    """
+    value_str = os.getenv(var_name, str(default))
+    try:
+        return int(value_str)
+    except ValueError:
+        logger.warning(
+            f"Invalid {var_name} value '{value_str}', using default {default}{unit}. "
+            "Ensure the environment variable contains only numeric characters."
+        )
+        return default
+
 
 def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
     """
@@ -110,16 +131,7 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Task 2: Make disk space threshold configurable
-        min_space_gb_str = os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1")
-        try:
-            min_space_gb = int(min_space_gb_str)
-        except ValueError:
-            logger.warning(
-                f"Invalid YOUTUBE_MIN_DISK_SPACE_GB value '{min_space_gb_str}', using default 1GB. "
-                "Ensure the environment variable contains only numeric characters."
-            )
-            min_space_gb = 1
-        # Use 1000^3 (decimal gigabytes) to match the "GB" naming convention
+        min_space_gb = _get_int_from_env("YOUTUBE_MIN_DISK_SPACE_GB", 1, "GB")# Use 1000^3 (decimal gigabytes) to match the "GB" naming convention
         # not 1024^3 (binary gibibytes/GiB)
         min_space_bytes = min_space_gb * 1_000_000_000
 
@@ -145,16 +157,7 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         # Task 6: Make max filesize configurable
         # Configure via YOUTUBE_MAX_FILESIZE_MB environment variable (default: 500MB)
         # Prevents resource exhaustion from extremely large audio files
-        max_filesize_mb_str = os.getenv("YOUTUBE_MAX_FILESIZE_MB", "500")
-        try:
-            max_filesize_mb = int(max_filesize_mb_str)
-        except ValueError:
-            logger.warning(
-                f"Invalid YOUTUBE_MAX_FILESIZE_MB value '{max_filesize_mb_str}', using default 500MB. "
-                "Ensure the environment variable contains only numeric characters."
-            )
-            max_filesize_mb = 500
-        MAX_AUDIO_FILESIZE_BYTES = max_filesize_mb * 1_000_000
+        max_filesize_mb = _get_int_from_env("YOUTUBE_MAX_FILESIZE_MB", 500, "MB")MAX_AUDIO_FILESIZE_BYTES = max_filesize_mb * 1_000_000
 
         # Task 6: Add max filesize limit & Task 3: Configurable quality
         ydl_opts = {
