@@ -110,11 +110,12 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Task 2: Make disk space threshold configurable
+        min_space_gb_str = os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1")
         try:
-            min_space_gb = int(os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1"))
+            min_space_gb = int(min_space_gb_str)
         except ValueError:
             logger.warning(
-                "Invalid YOUTUBE_MIN_DISK_SPACE_GB value, using default 1GB. "
+                f"Invalid YOUTUBE_MIN_DISK_SPACE_GB value '{min_space_gb_str}', using default 1GB. "
                 "Ensure the environment variable contains only numeric characters."
             )
             min_space_gb = 1
@@ -144,11 +145,12 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         # Task 6: Make max filesize configurable
         # Configure via YOUTUBE_MAX_FILESIZE_MB environment variable (default: 500MB)
         # Prevents resource exhaustion from extremely large audio files
+        max_filesize_mb_str = os.getenv("YOUTUBE_MAX_FILESIZE_MB", "500")
         try:
-            max_filesize_mb = int(os.getenv("YOUTUBE_MAX_FILESIZE_MB", "500"))
+            max_filesize_mb = int(max_filesize_mb_str)
         except ValueError:
             logger.warning(
-                "Invalid YOUTUBE_MAX_FILESIZE_MB value, using default 500MB. "
+                f"Invalid YOUTUBE_MAX_FILESIZE_MB value '{max_filesize_mb_str}', using default 500MB. "
                 "Ensure the environment variable contains only numeric characters."
             )
             max_filesize_mb = 500
