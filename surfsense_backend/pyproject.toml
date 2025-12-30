@@ -11,6 +11,7 @@ dependencies = [
     "discord-py>=2.5.2",
     "docling>=2.15.0",
     "fastapi>=0.115.8",
+    "fastapi-csrf-protect>=1.0.0",
     "fastapi-users[oauth,sqlalchemy]>=14.0.1",
     "firecrawl-py>=1.12.0",
     "github3.py==4.0.1",
