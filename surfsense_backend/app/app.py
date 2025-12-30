@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
             ["ffmpeg", "-version"],
             capture_output=True,
             check=True,
-            timeout=5
+            timeout=10  # Longer timeout prevents false negatives on slow systems or during high load
         )
         logger.info("ffmpeg detected successfully - YouTube videos without subtitles can use audio transcription")
     except FileNotFoundError:
@@ -63,8 +63,8 @@ async def lifespan(app: FastAPI):
         )
     except subprocess.CalledProcessError as e:
         logger.warning(f"ffmpeg check failed: {e}")
-    except subprocess.TimeoutError:
-        logger.warning("ffmpeg version check timed out")
+    except subprocess.TimeoutExpired:
+        logger.warning("ffmpeg version check timed out after 10 seconds")
 
     yield
 
