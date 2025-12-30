@@ -48,17 +48,17 @@ SESSION_REFRESH_THRESHOLD=0.5         # Refresh when 50% of token lifetime remai
 The `SESSION_REFRESH_THRESHOLD` controls when cookies are refreshed:
 
 - **0.5 (default)**: Refresh when < 12 hours remain (50% of 24h)
-- **0.25**: Refresh when < 6 hours remain (more frequent refreshes)
-- **0.75**: Refresh when < 18 hours remain (less frequent refreshes)
+- **0.25**: Refresh when < 6 hours remain (less frequent refreshes)
+- **0.75**: Refresh when < 18 hours remain (more frequent refreshes)
 
 **Trade-offs:**
 - **Lower threshold** (e.g., 0.25):
-  - ✅ Better UX - lower risk of expiration during active use
-  - ❌ Higher server load - more cookie operations
+  - ✅ Lower server load - fewer cookie operations
+  - ❌ Higher risk - user may become idle before next refresh
 
 - **Higher threshold** (e.g., 0.75):
-  - ✅ Lower server load - fewer cookie refreshes
-  - ❌ Higher risk - user may become idle before next refresh
+  - ✅ Better UX - lower risk of expiration during active use
+  - ❌ Higher server load - more cookie operations
 
 **Recommendation:** Keep at 0.5 for balanced performance and UX.
 
@@ -312,8 +312,8 @@ journalctl -u surfsense -n 100 | grep "refresh"
 ```
 
 **Causes:**
-1. **Threshold too high**: User becomes idle before refresh
-   - **Fix:** Lower `SESSION_REFRESH_THRESHOLD` (e.g., 0.25)
+1. **Threshold too low**: User becomes idle before refresh happens
+   - **Fix:** Increase `SESSION_REFRESH_THRESHOLD` (e.g., 0.75 for earlier refreshes)
 
 2. **Middleware not registered**: Missing `app.add_middleware(SlidingSessionMiddleware)`
    - **Fix:** Check `app/app.py` middleware configuration

@@ -6,6 +6,8 @@ from jose import jwt, JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.datastructures import MutableHeaders
 
+from app.users import cookie_transport
+
 logger = logging.getLogger(__name__)
 
 # Task 10: Document refresh threshold and make configurable
@@ -13,12 +15,12 @@ logger = logging.getLogger(__name__)
 # 0.5 (50%) means refresh when less than 12 hours remain of a 24-hour token.
 #
 # Lower threshold (e.g., 0.25):
-#   - Refreshes more frequently (at 75% expiration)
-#   - Higher server load but better UX (less risk of session expiry during use)
+#   - Refreshes less frequently (only when < 25% lifetime remains, i.e., < 6h)
+#   - Lower server load but higher risk of expiration if user becomes idle
 #
 # Higher threshold (e.g., 0.75):
-#   - Refreshes less often (only at 25% remaining)
-#   - Lower server load but higher risk of expiration if user becomes idle
+#   - Refreshes more frequently (when < 75% lifetime remains, i.e., < 18h)
+#   - Higher server load but better UX (less risk of session expiry during use)
 #
 # 0.5 balances these tradeoffs: users get refreshed halfway through their session,
 # providing ample time for continued activity while avoiding excessive refreshes.
@@ -169,9 +171,6 @@ class SlidingSessionMiddleware(BaseHTTPMiddleware):
         if auth_cookie and response.status_code < 400:
             # User is authenticated and request was successful
             # Check if cookie needs refreshing based on threshold
-            from app.users import cookie_transport
-
-            # Task 2: Use self.secret_key instead of importing SECRET
             if self._should_refresh_cookie(auth_cookie):
                 # Refresh the cookie with a new 24h expiration
                 response.set_cookie(
