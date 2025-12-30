@@ -58,6 +58,7 @@ dependencies = [
     "feedparser>=6.0.0",
     "bcrypt>=4.2.1,<5.0.0",
     "structlog>=24.1.0",
+    "python-jose[cryptography]>=3.3.0",
 ]
 
 [dependency-groups]
