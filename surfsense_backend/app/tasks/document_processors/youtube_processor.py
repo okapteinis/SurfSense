@@ -2,16 +2,21 @@
 YouTube video document processor.
 """
 
+import asyncio
 import logging
+import os
+import tempfile
 from urllib.parse import parse_qs, urlparse
 
 import aiohttp
+import yt_dlp
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from youtube_transcript_api import YouTubeTranscriptApi
 
 from app.db import Document, DocumentType
 from app.services.llm_service import get_user_long_context_llm
+from app.services.stt_service import stt_service
 from app.services.task_logging_service import TaskLoggingService
 from app.utils.document_converters import (
     create_document_chunks,
@@ -49,6 +54,68 @@ def get_youtube_video_id(url: str) -> str | None:
         if parsed_url.path.startswith("/v/"):
             return parsed_url.path.split("/")[2]
     return None
+
+
+logger = logging.getLogger(__name__)
+
+
+def extract_audio_and_transcribe(video_url: str, video_id: str) -> str:
+    """
+    Download audio from YouTube video and transcribe using STT service.
+
+    This function runs synchronously and should be called via asyncio.to_thread().
+
+    Args:
+        video_url: Full YouTube video URL
+        video_id: YouTube video ID for logging
+
+    Returns:
+        Transcribed text or empty string if transcription fails
+    """
+    logger.info(f"Extracting audio and transcribing video {video_id}")
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        audio_path = os.path.join(tmp_dir, "audio.wav")
+
+        # Configure yt-dlp to download best audio and convert to WAV
+        ydl_opts = {
+            "format": "bestaudio/best",
+            "postprocessors": [
+                {
+                    "key": "FFmpegExtractAudio",
+                    "preferredcodec": "wav",
+                    "preferredquality": "192",
+                }
+            ],
+            "outtmpl": audio_path.replace(".wav", ""),
+            "quiet": True,
+            "no_warnings": True,
+        }
+
+        try:
+            # Download audio
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                ydl.download([video_url])
+
+            # Transcribe using existing STT service
+            logger.info(f"Transcribing audio for video {video_id}")
+            result = stt_service.transcribe_file(audio_path)
+
+            transcript_text = result.get("text", "")
+            language = result.get("language", "unknown")
+
+            logger.info(
+                f"Successfully transcribed {len(transcript_text)} characters from video {video_id} (detected language: {language})"
+            )
+
+            return transcript_text
+
+        except Exception as e:
+            logger.error(
+                f"Failed to extract audio or transcribe video {video_id}: {e}",
+                exc_info=True,
+            )
+            return ""
 
 
 async def add_youtube_video_document(
@@ -159,12 +226,43 @@ async def add_youtube_video_document(
                 },
             )
         except Exception as e:
-            transcript_text = f"No captions available for this video. Error: {e!s}"
+            # No subtitles available - attempt STT fallback
             await task_logger.log_task_progress(
                 log_entry,
-                f"No transcript available for video: {video_id}",
-                {"stage": "transcript_unavailable", "error": str(e)},
+                f"No subtitles found for video {video_id}, attempting STT transcription",
+                {"stage": "stt_fallback_attempt", "subtitle_error": str(e)},
             )
+            logger.info(
+                f"No subtitles found for video {video_id}, attempting STT transcription"
+            )
+
+            video_url = f"https://www.youtube.com/watch?v={video_id}"
+            transcript_text = await asyncio.to_thread(
+                extract_audio_and_transcribe, video_url, video_id
+            )
+
+            if transcript_text:
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"Successfully obtained transcript via STT for video {video_id}",
+                    {
+                        "stage": "stt_transcription_success",
+                        "transcript_length": len(transcript_text),
+                    },
+                )
+                logger.info(
+                    f"Successfully obtained transcript via STT for video {video_id}"
+                )
+            else:
+                transcript_text = f"No captions available for this video. Subtitle error: {e!s}. STT transcription also failed."
+                await task_logger.log_task_progress(
+                    log_entry,
+                    f"STT transcription also failed for video {video_id}",
+                    {"stage": "stt_transcription_failed"},
+                )
+                logger.warning(
+                    f"STT transcription also failed for video {video_id}"
+                )
 
         # Format document
         await task_logger.log_task_progress(
