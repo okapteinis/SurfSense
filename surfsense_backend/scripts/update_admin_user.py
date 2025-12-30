@@ -131,8 +131,6 @@ async def update_admin_user():
                 print("   - Permissions: Superuser with full access")
                 print("   - Status: Active and verified")
             else:
-                # Sanitize email for error messages
-                email_hint = sanitize_email(admin_email)
                 print(f"\n[ERROR] Admin user not found")
                 print("   - Verify the email address in your .env file")
                 print("   - Run 'python -m scripts.list_users' to see all users")
