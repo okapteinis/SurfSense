@@ -8,6 +8,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi_csrf_protect.exceptions import CsrfProtectError
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import select
@@ -95,6 +96,37 @@ app = FastAPI(lifespan=lifespan)
 # Register shared rate limiter with FastAPI app
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(CsrfProtectError)
+async def csrf_protect_exception_handler(request: Request, exc: CsrfProtectError):
+    """
+    Handle CSRF protection errors.
+
+    Args:
+        request: The request that failed CSRF validation
+        exc: The CSRF protection exception
+
+    Returns:
+        JSONResponse with CSRF error details
+    """
+    logger.warning(
+        "CSRF validation failed",
+        extra={
+            "path": str(request.url),
+            "method": request.method,
+            "error": str(exc),
+        }
+    )
+
+    return JSONResponse(
+        status_code=status.HTTP_403_FORBIDDEN,
+        content={
+            "error": "CSRF validation failed",
+            "message": "Invalid or missing CSRF token. Please obtain a new token from /api/csrf-token",
+            "detail": str(exc),
+        }
+    )
 
 
 @app.exception_handler(Exception)

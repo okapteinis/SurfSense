@@ -280,9 +280,34 @@ Before self-hosting installation, make sure to complete the [prerequisite setup 
 -  **pgAdmin**: Web-based PostgreSQL administration tool included in Docker setup
 
 
-### **Extension** 
+### **Extension**
  Manifest v3 on Plasmo
 
+
+## 🔒 Security
+
+SurfSense implements enterprise-grade security features to protect your data:
+
+### Security Features
+- **🛡️ CSRF Protection**: Double-submit cookie pattern with automatic token injection
+- **🌐 SSRF Protection**: Comprehensive URL validation preventing access to private networks
+- **🔐 Security Headers**: HSTS, CSP, X-Frame-Options, and more
+- **⚡ Rate Limiting**: Per-IP rate limits on sensitive endpoints
+- **🔒 Secrets Management**: SOPS encryption with age for secure secret storage
+- **🔑 Authentication**: JWT + OAuth with optional 2FA support
+- **📝 Input Validation**: Pydantic models with SQL injection prevention
+- **🚫 Information Exposure Prevention**: Generic error messages, no stack trace leaks
+
+### Security Testing
+- **CodeQL**: Automated semantic code analysis
+- **Safety**: Python dependency vulnerability scanning
+- **Bandit**: Security linting for Python code
+- **Security Test Suite**: Comprehensive pytest test suite with `@pytest.mark.security`
+
+### For More Information
+- [Security Policy](SECURITY.md) - Vulnerability reporting and security features
+- [Security Fixes](SECURITY_FIXES.md) - Implementation guide
+- [CodeQL Status](CODEQL_FIXES.md) - Security alert tracking
 
 ## Documentation
 
