@@ -35,8 +35,23 @@ MAX_CONTEXT_LENGTH = 10000
 
 # Cache configuration
 # Environment-configurable for production flexibility
-CACHE_MAX_SIZE = int(os.getenv("AI_ASSIST_CACHE_MAX_SIZE", "1000"))
-CACHE_TTL_SECONDS = int(os.getenv("AI_ASSIST_CACHE_TTL", "3600"))  # 1 hour default
+try:
+    CACHE_MAX_SIZE = int(os.getenv("AI_ASSIST_CACHE_MAX_SIZE", "1000"))
+except ValueError:
+    logger.warning(
+        "Invalid AI_ASSIST_CACHE_MAX_SIZE value, using default 1000. "
+        "Ensure the environment variable contains only numeric characters."
+    )
+    CACHE_MAX_SIZE = 1000
+
+try:
+    CACHE_TTL_SECONDS = int(os.getenv("AI_ASSIST_CACHE_TTL", "3600"))
+except ValueError:
+    logger.warning(
+        "Invalid AI_ASSIST_CACHE_TTL value, using default 3600 seconds. "
+        "Ensure the environment variable contains only numeric characters."
+    )
+    CACHE_TTL_SECONDS = 3600  # 1 hour default
 
 # Task 7: TTL-based response cache
 # Caches responses to reduce LLM costs and improve latency for repeated requests
@@ -400,28 +415,28 @@ async def assist(
                 )
 
             except TimeoutError as e:
-                # LLM service timeout
+                # LLM service timeout (SECURITY: sanitize error messages)
                 logger.error(
                     "ai_assist_timeout",
                     user_id=str(user.id),
                     command=request.command,
-                    error=str(e),
+                    error=sanitize_exception_message(e),
                     exc_info=True
                 )
                 yield "\n\n[Error: Request timed out. The AI service is taking too long to respond. Please try again.]"
             except ConnectionError as e:
-                # Network/connection issues
+                # Network/connection issues (SECURITY: sanitize error messages)
                 logger.error(
                     "ai_assist_connection_error",
                     user_id=str(user.id),
                     command=request.command,
-                    error=str(e),
+                    error=sanitize_exception_message(e),
                     exc_info=True
                 )
                 yield "\n\n[Error: Connection to AI service failed. Please check your network and try again.]"
             except Exception as e:
                 # Task 4, 7: Sanitized error handling for other exceptions
-                error_msg = sanitize_exception_message(str(e))
+                error_msg = sanitize_exception_message(e)
                 logger.error(
                     "ai_assist_streaming_error",
                     user_id=str(user.id),
@@ -440,7 +455,7 @@ async def assist(
 
     except Exception as e:
         # Task 4: Sanitize unexpected errors
-        error_msg = sanitize_exception_message(str(e))
+        error_msg = sanitize_exception_message(e)
         logger.error(
             "ai_assist_error",
             user_id=str(user.id) if user else "unknown",
