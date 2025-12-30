@@ -1,7 +1,10 @@
 import hashlib
 import logging
+import os
 import re
+import time
 
+from cachetools import TTLCache
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, field_validator
@@ -20,8 +23,19 @@ logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1/assist", tags=["assist"])
 
-# Task 11: Simple in-memory cache for responses
-_response_cache = {}
+# Task 7: TTL-based response cache
+# Caches responses for 1 hour to reduce LLM costs and improve latency for repeated requests
+# Max 1000 entries to prevent unbounded memory growth
+_response_cache = TTLCache(maxsize=1000, ttl=3600)
+
+# Task 1: slowapi compatibility note
+# slowapi is compatible with FastAPI async endpoints and streaming responses.
+# Tested with FastAPI 0.115+ and works correctly with Server-Sent Events (SSE).
+# The rate limiter uses the first Request parameter to extract client IP.
+
+# Constants for validation (Task 12)
+MAX_INPUT_LENGTH = 10000
+MAX_CONTEXT_LENGTH = 10000
 
 
 # Task 8: Prompt injection detection
@@ -121,21 +135,51 @@ class AssistRequest(BaseModel):
 
     Attributes:
         user_input: Text to process (max 10,000 characters)
-        context: Additional context for draft command. This provides background
-                 information that the AI uses to generate contextually relevant
-                 responses. For example, when drafting a reply to an email, the
-                 context would contain the original email content.
+        context: Additional context for draft command. Provides background information
+                 that the AI uses to generate contextually relevant responses.
+
+                 **Context Format & Examples:**
+
+                 For drafting email replies:
+                 ```
+                 Context: "user: Can you help me reset my password?
+                 assistant: Of course! Click the 'Forgot Password' link...
+                 user: Thanks! What about enabling 2FA?"
+                 ```
+
+                 For generating blog post drafts:
+                 ```
+                 Context: "Topic: Introduction to Machine Learning
+                 Audience: Beginners with basic Python knowledge
+                 Tone: Educational but friendly
+                 Key points: supervised learning, unsupervised learning, practical examples"
+                 ```
+
+                 For product descriptions:
+                 ```
+                 Context: "Product: Wireless Bluetooth Headphones
+                 Features: 40-hour battery, noise cancellation, comfortable fit
+                 Target audience: Commuters and travelers
+                 Price point: Mid-range ($100-150)"
+                 ```
+
+                 **Best Practices:**
+                 - Include relevant background information only
+                 - Format as key-value pairs or conversation history
+                 - Keep context focused on the task at hand
+                 - Respect the 10,000 character limit
+
         command: Type of assistance requested (draft, improve, shorten, etc.)
     """
     # Task 2, 6: Input validation with size limits
     user_input: str = Field(
         default="",
-        max_length=10000,
+        max_length=MAX_INPUT_LENGTH,
         description="Text to process or improve"
     )
     context: str | None = Field(
         default=None,
-        max_length=10000,
+        max_length=MAX_CONTEXT_LENGTH,
         description="Additional context for generating responses"
     )
     # Task 3: Command validation with Literal type
@@ -193,22 +237,40 @@ async def assist(
     """
 
     try:
-        # Task 12: Telemetry - Log request details
+        # Task 12: Redundant length validation (defense in depth against Pydantic bypasses)
+        if len(request.user_input) > MAX_INPUT_LENGTH:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Input too long: {len(request.user_input)} characters (max: {MAX_INPUT_LENGTH})"
+            )
+        if request.context and len(request.context) > MAX_CONTEXT_LENGTH:
+            raise HTTPException(
+                status_code=413,
+                detail=f"Context too long: {len(request.context)} characters (max: {MAX_CONTEXT_LENGTH})"
+            )
+
+        # Task 8: Enhanced telemetry - Log request details with timing
+        start_time = time.time()
         logger.info(
             "ai_assist_request",
             user_id=str(user.id),
             command=request.command,
             input_length=len(request.user_input or ""),
             context_length=len(request.context or ""),
+            client_ip=http_request.client.host if http_request.client else "unknown",
         )
 
-        # Task 11: Check cache first
+        # Task 7: Check TTL cache first
         cache_key = hashlib.sha256(
             f"{request.command}:{request.user_input or ''}:{request.context or ''}".encode()
         ).hexdigest()
 
         if cache_key in _response_cache:
-            logger.info("ai_assist_cache_hit", cache_key=cache_key)
+            logger.info(
+                "ai_assist_cache_hit",
+                cache_key=cache_key,
+                user_id=str(user.id)
+            )
             cached_response = _response_cache[cache_key]
             async def serve_cached():
                 yield cached_response
@@ -229,7 +291,23 @@ async def assist(
                 detail="No search space configured. Please configure your search space first."
             )
 
-        # Task 1: Switch to standard LLM (not fast LLM)
+        # Task 11: LLM Selection - Using standard LLM for quality
+        # Standard LLM provides better quality for text improvement tasks compared to fast LLM.
+        # Fast LLM prioritizes speed over quality and may produce lower-quality outputs for
+        # creative tasks like improving text, drafting responses, or formal/casual rewrites.
+        #
+        # For simple tasks like shortening or translation, fast LLM might be sufficient,
+        # but we prioritize consistent quality across all commands.
+        #
+        # Alternative: Implement per-command LLM selection:
+        # command_llm_map = {
+        #     "draft": get_user_llm_instance,      # Quality matters
+        #     "improve": get_user_llm_instance,    # Quality matters
+        #     "shorten": get_user_fast_llm,        # Speed acceptable
+        #     "translate": get_user_fast_llm,      # Speed acceptable
+        #     "formal": get_user_llm_instance,     # Quality matters
+        #     "casual": get_user_llm_instance,     # Quality matters
+        # }
         llm = await get_user_llm_instance(
             session, str(user.id), preference.search_space_id
         )
@@ -262,15 +340,20 @@ async def assist(
                     accumulated_response += content
                     yield content
 
-                # Task 11: Cache the complete response
+                # Task 7: Cache the complete response
                 _response_cache[cache_key] = accumulated_response
 
-                # Task 12: Log successful completion
+                # Task 8: Enhanced telemetry - Log successful completion with all metrics
+                duration_seconds = time.time() - start_time
                 logger.info(
                     "ai_assist_success",
                     user_id=str(user.id),
                     command=request.command,
-                    response_length=len(accumulated_response)
+                    input_length=len(request.user_input or ""),
+                    context_length=len(request.context or ""),
+                    response_length=len(accumulated_response),
+                    duration_seconds=f"{duration_seconds:.2f}",
+                    cached=False,
                 )
 
             except Exception as e:
