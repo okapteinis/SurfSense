@@ -125,10 +125,8 @@ async def update_admin_user():
             if updated_user:
                 await session.commit()
                 # Sanitize email for console output to prevent sensitive data exposure
-                email_hint = sanitize_email(admin_email)
                 print(f"\n[OK] Successfully updated admin user")
                 print(f"   - User ID: {updated_user.id}")
-                print(f"   - Email: {email_hint}")
                 print("   - Password: Updated ✓")
                 print("   - Permissions: Superuser with full access")
                 print("   - Status: Active and verified")
@@ -136,7 +134,6 @@ async def update_admin_user():
                 # Sanitize email for error messages
                 email_hint = sanitize_email(admin_email)
                 print(f"\n[ERROR] Admin user not found")
-                print(f"   - Email hint: {email_hint}")
                 print("   - Verify the email address in your .env file")
                 print("   - Run 'python -m scripts.list_users' to see all users")
 
