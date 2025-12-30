@@ -73,7 +73,7 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         YOUTUBE_AUDIO_QUALITY: Audio bitrate in kbps (default: 96)
             Lower quality reduces file size and processing time but may impact
             transcription accuracy for noisy audio. 96kbps is optimized for speech.
-        YOUTUBE_MAX_FILESIZE_MB: Maximum audio file size in MB (default: 500)
+        YOUTUBE_MAX_FILESIZE_MB: Maximum audio file size in decimal megabytes/MB (10^6 bytes, default: 500)
             Prevents resource exhaustion from extremely large audio files.
 
     Args:
@@ -110,7 +110,14 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Task 2: Make disk space threshold configurable
-        min_space_gb = int(os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1"))
+        try:
+            min_space_gb = int(os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1"))
+        except ValueError:
+            logger.warning(
+                "Invalid YOUTUBE_MIN_DISK_SPACE_GB value, using default 1GB. "
+                "Ensure the environment variable contains only numeric characters."
+            )
+            min_space_gb = 1
         # Use 1000^3 (decimal gigabytes) to match the "GB" naming convention
         # not 1024^3 (binary gibibytes/GiB)
         min_space_bytes = min_space_gb * 1_000_000_000
@@ -137,7 +144,14 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         # Task 6: Make max filesize configurable
         # Configure via YOUTUBE_MAX_FILESIZE_MB environment variable (default: 500MB)
         # Prevents resource exhaustion from extremely large audio files
-        max_filesize_mb = int(os.getenv("YOUTUBE_MAX_FILESIZE_MB", "500"))
+        try:
+            max_filesize_mb = int(os.getenv("YOUTUBE_MAX_FILESIZE_MB", "500"))
+        except ValueError:
+            logger.warning(
+                "Invalid YOUTUBE_MAX_FILESIZE_MB value, using default 500MB. "
+                "Ensure the environment variable contains only numeric characters."
+            )
+            max_filesize_mb = 500
         MAX_AUDIO_FILESIZE_BYTES = max_filesize_mb * 1_000_000
 
         # Task 6: Add max filesize limit & Task 3: Configurable quality
