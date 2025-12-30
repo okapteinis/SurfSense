@@ -108,8 +108,9 @@ async def csrf_protect_exception_handler(request: Request, exc: CsrfProtectError
         exc: The CSRF protection exception
 
     Returns:
-        JSONResponse with CSRF error details
+        JSONResponse with CSRF error (no internal details exposed)
     """
+    # Log detailed error server-side only
     logger.warning(
         "CSRF validation failed",
         extra={
@@ -119,12 +120,12 @@ async def csrf_protect_exception_handler(request: Request, exc: CsrfProtectError
         }
     )
 
+    # Return generic error to user (no implementation details)
     return JSONResponse(
         status_code=status.HTTP_403_FORBIDDEN,
         content={
             "error": "CSRF validation failed",
             "message": "Invalid or missing CSRF token. Please obtain a new token from /api/csrf-token",
-            "detail": str(exc),
         }
     )
 
@@ -336,11 +337,13 @@ from app.routes.assist import router as assist_router
 
 app.include_router(assist_router)
 
+# Include CSRF protection routes (must be at /api prefix for frontend)
+from app.routes.csrf_routes import router as csrf_router
+app.include_router(csrf_router, prefix="/api", tags=["csrf"])
+
 # Include health check routes (no rate limiting, for monitoring/load balancers)
 from app.routes.health_routes import router as health_router
-from app.routes.csrf_routes import router as csrf_router
 app.include_router(health_router)
-app.include_router(csrf_router)
 
 
 @app.get("/verify-token")
