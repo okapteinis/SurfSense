@@ -157,7 +157,8 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         # Task 6: Make max filesize configurable
         # Configure via YOUTUBE_MAX_FILESIZE_MB environment variable (default: 500MB)
         # Prevents resource exhaustion from extremely large audio files
-        max_filesize_mb = _get_int_from_env("YOUTUBE_MAX_FILESIZE_MB", 500, "MB")MAX_AUDIO_FILESIZE_BYTES = max_filesize_mb * 1_000_000
+        max_filesize_mb = _get_int_from_env("YOUTUBE_MAX_FILESIZE_MB", 500, "MB")
+        MAX_AUDIO_FILESIZE_BYTES = max_filesize_mb * 1_000_000
 
         # Task 6: Add max filesize limit & Task 3: Configurable quality
         ydl_opts = {
