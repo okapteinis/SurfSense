@@ -68,43 +68,56 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
 
     This function runs synchronously and should be called via asyncio.to_thread().
 
+    Configuration (via environment variables):
+        YOUTUBE_MIN_DISK_SPACE_GB: Minimum free disk space in GB (default: 1)
+        YOUTUBE_AUDIO_QUALITY: Audio bitrate in kbps (default: 96)
+            Lower quality reduces file size and processing time but may impact
+            transcription accuracy for noisy audio. 96kbps is optimized for speech.
+
     Args:
         video_url: Full YouTube video URL
         video_id: YouTube video ID for logging
 
     Returns:
         Dictionary with 'text' (transcribed text) and 'language' (detected language),
-        or empty dict if transcription fails
-
-    Raises:
-        RuntimeError: If ffmpeg is not available on the system
+        or empty dict if transcription fails. Empty dict allows fallback to subtitle
+        transcription if available.
     """
     logger.info(f"Extracting audio and transcribing video {video_id}")
 
-    # Task 3: Check ffmpeg availability before attempting download
+    # Task 6: Check ffmpeg availability - warn instead of error to allow subtitle fallback
     try:
         subprocess.run(
             ["ffmpeg", "-version"],
             capture_output=True,
             check=True,
-            timeout=5
+            timeout=10  # Task 8: Increased from 5s to prevent false negatives on slow systems
         )
     except FileNotFoundError:
-        error_msg = "ffmpeg not found - required for YouTube audio extraction"
-        logger.error(error_msg)
-        raise RuntimeError(error_msg)
+        logger.warning(
+            "ffmpeg not found - YouTube STT fallback unavailable. "
+            "Install ffmpeg to enable audio transcription for videos without subtitles."
+        )
+        return {}
     except subprocess.CalledProcessError as e:
-        error_msg = f"ffmpeg check failed: {e}"
-        logger.error(error_msg)
-        raise RuntimeError(error_msg)
+        logger.warning(f"ffmpeg check failed: {e}. STT fallback unavailable.")
+        return {}
+    except subprocess.TimeoutExpired:
+        logger.warning("ffmpeg version check timed out. STT fallback may be unavailable.")
+        return {}
 
     with tempfile.TemporaryDirectory() as tmp_dir:
-        # Task 5: Check available disk space (require at least 1GB free)
+        # Task 2: Make disk space threshold configurable
+        min_space_gb = int(os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1"))
+        min_space_bytes = min_space_gb * 1024 * 1024 * 1024
+
         stat = shutil.disk_usage(tmp_dir)
-        if stat.free < 1_000_000_000:  # 1GB in bytes
+        if stat.free < min_space_bytes:
             logger.error(
                 f"Insufficient disk space for video {video_id}: "
-                f"{stat.free / 1_000_000_000:.2f}GB free, need at least 1GB"
+                f"{stat.free / 1_000_000_000:.2f}GB free, need at least {min_space_gb}GB. "
+                f"Free up disk space in temp directory or adjust YOUTUBE_MIN_DISK_SPACE_GB "
+                f"environment variable."
             )
             return {}
 
@@ -112,14 +125,19 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         audio_base = os.path.join(tmp_dir, "audio")
         audio_path = audio_base + ".wav"
 
-        # Task 6: Add max filesize limit & Task 9: Reduce quality to 96kbps
+        # Task 3: Make audio quality configurable
+        # Lower quality reduces file size and processing time but may impact
+        # transcription accuracy for noisy audio. 96kbps is optimized for speech.
+        audio_quality = os.getenv("YOUTUBE_AUDIO_QUALITY", "96")
+
+        # Task 6: Add max filesize limit & Task 3: Configurable quality
         ydl_opts = {
             "format": "bestaudio/best",
             "postprocessors": [
                 {
                     "key": "FFmpegExtractAudio",
                     "preferredcodec": "wav",
-                    "preferredquality": "96",  # Optimized for speech transcription
+                    "preferredquality": audio_quality,
                 }
             ],
             "outtmpl": audio_base,  # No extension - yt-dlp adds it
@@ -129,12 +147,20 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         }
 
         try:
-            # Task 11: Download audio with specific yt-dlp error handling
+            # Task 7 & 11: Download audio with specific error handling
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([video_url])
             except DownloadError as e:
-                logger.error(f"yt-dlp failed to download video {video_id}: {e}")
+                # Task 7: Check for filesize limit errors specifically
+                error_str = str(e).lower()
+                if "filesize" in error_str or "file size" in error_str or "too large" in error_str:
+                    logger.error(
+                        f"Video {video_id} audio exceeds configured size limit (500MB), "
+                        f"cannot process. Adjust max_filesize if needed."
+                    )
+                else:
+                    logger.error(f"yt-dlp failed to download video {video_id}: {e}")
                 return {}
 
             # Verify audio file was created
