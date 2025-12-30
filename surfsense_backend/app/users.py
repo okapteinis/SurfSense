@@ -65,8 +65,8 @@ async def get_user_manager(user_db: SQLAlchemyUserDatabase = Depends(get_user_db
 
 
 def get_jwt_strategy() -> JWTStrategy[models.UP, models.ID]:
-    # SECURITY: Token lifetime set to 1 hour for better security
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
+    # SECURITY: Token lifetime set to 24 hours with sliding session
+    return JWTStrategy(secret=SECRET, lifetime_seconds=86400)
 
 
 # SECURE COOKIE AUTH - HttpOnly cookies prevent XSS attacks
@@ -99,7 +99,7 @@ class CustomCookieTransport(CookieTransport):
 
 
 cookie_transport = CustomCookieTransport(
-    cookie_max_age=3600,  # 1 hour
+    cookie_max_age=86400,  # 24 hours - sliding session refreshes on activity
     cookie_name="surfsense_auth",
     cookie_httponly=True,  # SECURITY: Prevents JavaScript access (XSS protection)
     cookie_secure=config.COOKIE_SECURE,  # SECURITY: Configurable HTTPS requirement
