@@ -503,3 +503,142 @@ text
 
 *Updated: Dec 31, 2025 | PR #296 merged*
 
+
+## 🚀 VPS DEPLOYMENT PROTOCOL (Bulletproof v2.0)
+
+**Server**: root@46.62.230.195 (ssh -i ~/.ssh/id_ed25519_surfsense)
+**Project Path**: /opt/SurfSense
+
+### ⚠️ CRITICAL RULES (Never Break)
+1. **ALWAYS** create backup before ANY changes
+2. **ALWAYS** stop frontend service BEFORE rebuild
+3. **ALWAYS** delete .next directory BEFORE pnpm build
+4. **NEVER** git pull without complete frontend rebuild
+5. **ALWAYS** test build success BEFORE service restart
+
+---
+
+### STEP 1: CREATE BACKUP (Mandatory)
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+cd /opt
+BACKUP_NAME=SurfSense.backup.$(date +%Y%m%d_%H%M%S).tar.gz
+tar -czf $BACKUP_NAME SurfSense
+ls -lh $BACKUP_NAME
+echo '✅ Backup created: '$BACKUP_NAME
+"
+
+text
+
+### STEP 2: DEPLOY BACKEND ONLY (Isolated & Safe)
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+cd /opt/SurfSense
+
+Save any local changes
+git stash
+
+Update to nightly
+git checkout nightly
+git pull origin nightly
+
+Backend deployment
+cd surfsense_backend
+source venv/bin/activate
+pip install -e . --no-deps
+alembic upgrade head
+
+Restart backend services only
+systemctl restart surfsense surfsense-celery
+sleep 5
+systemctl status surfsense --no-pager -l | head -15
+
+echo '✅ BACKEND DEPLOYED'
+"
+
+text
+
+### STEP 3: FRONTEND REBUILD (CRITICAL - Follow Exactly)
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+
+STEP 3.1: STOP service (prevents corruption)
+systemctl stop surfsense-frontend
+echo '✅ Frontend service stopped'
+
+STEP 3.2: CLEAN old build (mandatory)
+cd /opt/SurfSense/surfsense_web
+rm -rf .next
+rm -rf node_modules/.cache
+echo '✅ Old build removed'
+
+STEP 3.3: INSTALL dependencies
+pnpm install --frozen-lockfile
+echo '✅ Dependencies installed'
+
+STEP 3.4: BUILD (test success)
+pnpm build
+if [ $? -eq 0 ]; then
+echo '✅ FRONTEND BUILD SUCCESS'
+else
+echo '❌ FRONTEND BUILD FAILED - ABORTING'
+exit 1
+fi
+
+STEP 3.5: START service (only if build succeeded)
+systemctl start surfsense-frontend
+sleep 10
+
+STEP 3.6: HEALTH CHECK
+curl -I http://localhost:3000 2>&1 | head -5
+
+echo '✅ FRONTEND DEPLOYED'
+"
+
+text
+
+### STEP 4: VERIFY ALL SERVICES
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+echo '=== ALL SERVICES STATUS ==='
+systemctl status surfsense surfsense-celery surfsense-frontend --no-pager
+
+echo ''
+echo '=== RECENT FRONTEND LOGS ==='
+journalctl -u surfsense-frontend -n 10 --no-pager
+
+echo ''
+echo '=== GIT STATUS ==='
+cd /opt/SurfSense && git log --oneline -3
+
+echo '✅ DEPLOYMENT COMPLETE'
+"
+
+text
+
+### EMERGENCY ROLLBACK (If anything fails)
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+
+Stop all services
+systemctl stop surfsense surfsense-celery surfsense-frontend
+
+Find latest backup
+cd /opt
+LATEST_BACKUP=$(ls -t SurfSense.backup.*.tar.gz | head -1)
+echo 'Rolling back to: '$LATEST_BACKUP
+
+Restore from backup
+rm -rf SurfSense
+tar -xzf $LATEST_BACKUP
+
+Restart all services
+systemctl start surfsense surfsense-celery surfsense-frontend
+sleep 10
+systemctl status surfsense surfsense-celery surfsense-frontend --no-pager
+
+echo '✅ ROLLBACK COMPLETE'
+"
+
+text
+
+---
+
+*Updated: Dec 31, 2025 - After frontend deployment incident*
+*Incident Report: Git pull without frontend rebuild corrupted .next build directory*
+
