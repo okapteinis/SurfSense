@@ -109,7 +109,9 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
     with tempfile.TemporaryDirectory() as tmp_dir:
         # Task 2: Make disk space threshold configurable
         min_space_gb = int(os.getenv("YOUTUBE_MIN_DISK_SPACE_GB", "1"))
-        min_space_bytes = min_space_gb * 1024 * 1024 * 1024
+        # Use 1000^3 (decimal gigabytes) to match the "GB" naming convention
+        # not 1024^3 (binary gibibytes/GiB)
+        min_space_bytes = min_space_gb * 1000 * 1000 * 1000
 
         stat = shutil.disk_usage(tmp_dir)
         if stat.free < min_space_bytes:
@@ -130,6 +132,9 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
         # transcription accuracy for noisy audio. 96kbps is optimized for speech.
         audio_quality = os.getenv("YOUTUBE_AUDIO_QUALITY", "96")
 
+        # Define max filesize as constant to use in both config and error messages
+        MAX_AUDIO_FILESIZE_BYTES = 500_000_000  # 500MB limit to prevent resource exhaustion
+
         # Task 6: Add max filesize limit & Task 3: Configurable quality
         ydl_opts = {
             "format": "bestaudio/best",
@@ -143,7 +148,7 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
             "outtmpl": audio_base,  # No extension - yt-dlp adds it
             "quiet": True,
             "no_warnings": True,
-            "max_filesize": 500_000_000,  # 500MB limit to prevent resource exhaustion
+            "max_filesize": MAX_AUDIO_FILESIZE_BYTES,
         }
 
         try:
@@ -155,8 +160,10 @@ def extract_audio_and_transcribe(video_url: str, video_id: str) -> dict:
                 # Task 7: Check for filesize limit errors specifically
                 error_str = str(e).lower()
                 if "filesize" in error_str or "file size" in error_str or "too large" in error_str:
+                    # Calculate limit in MB from bytes for error message
+                    limit_mb = MAX_AUDIO_FILESIZE_BYTES / 1_000_000
                     logger.error(
-                        f"Video {video_id} audio exceeds configured size limit (500MB), "
+                        f"Video {video_id} audio exceeds configured size limit ({limit_mb:.0f}MB), "
                         f"cannot process. Adjust max_filesize if needed."
                     )
                 else:
