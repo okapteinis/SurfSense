@@ -504,141 +504,240 @@ text
 *Updated: Dec 31, 2025 | PR #296 merged*
 
 
-## 🚀 VPS DEPLOYMENT PROTOCOL (Bulletproof v2.0)
+## 📦 BACKUP POLICY (Hybrid Approach)
 
-**Server**: root@46.62.230.195 (ssh -i ~/.ssh/id_ed25519_surfsense)
-**Project Path**: /opt/SurfSense
+### General File Modifications
+**NO MANUAL BACKUPS** - Use git workflow:
+```bash
+git add .
+git commit -m "description"
+git push
+```
 
-### ⚠️ CRITICAL RULES (Never Break)
-1. **ALWAYS** create backup before ANY changes
-2. **ALWAYS** stop frontend service BEFORE rebuild
-3. **ALWAYS** delete .next directory BEFORE pnpm build
-4. **NEVER** git pull without complete frontend rebuild
-5. **ALWAYS** test build success BEFORE service restart
+### VPS Deployments ONLY
+**SELECTIVE PRE-DEPLOYMENT SNAPSHOT:**
+```bash
+# Create snapshot (~500MB, 30 seconds)
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+  cd /opt
+  tar -czf surfsense_code_\$(date +%Y%m%d_%H%M%S).tar.gz \
+    --exclude='SurfSense/surfsense_backend/venv' \
+    --exclude='SurfSense/surfsense_web/node_modules' \
+    --exclude='SurfSense/surfsense_web/.next' \
+    --exclude='SurfSense/surfsense_backend/uploads' \
+    SurfSense
+  ls -t surfsense_code_*.tar.gz | tail -n +4 | xargs -r rm
+"
+```
+
+### What NEVER Backup
+- ❌ Ollama models (10-60GB) - re-download if needed
+- ❌ venv/node_modules - recreate with pip/pnpm
+- ❌ .next, __pycache__, *.log
+
+### Automated Backups (Trusted)
+- Daily PostgreSQL: 2:00 AM
+- Cleanup scripts: 4:30 AM
+- Git: All code changes
 
 ---
 
-### STEP 1: CREATE BACKUP (Mandatory)
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
-cd /opt
-BACKUP_NAME=SurfSense.backup.$(date +%Y%m%d_%H%M%S).tar.gz
-tar -czf $BACKUP_NAME SurfSense
-ls -lh $BACKUP_NAME
-echo '✅ Backup created: '$BACKUP_NAME
-"
+## 🚀 VPS DEPLOYMENT PROTOCOL v3.0 (Post-Incident)
 
-text
+**Server**: root@46.62.230.195
+**SSH**: `ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195`
+**Path**: /opt/SurfSense
 
-### STEP 2: DEPLOY BACKEND ONLY (Isolated & Safe)
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
-cd /opt/SurfSense
+### ⚠️ INCIDENT LESSONS (Dec 30/31, 2025)
+```
+Frontend broke: .next corruption from git pull without rebuild
+Disk full: Attempted backup with insufficient space
+Fix: Selective backups + mandatory service stop + .next cleanup
+```
 
-Save any local changes
-git stash
-
-Update to nightly
-git checkout nightly
-git pull origin nightly
-
-Backend deployment
-cd surfsense_backend
-source venv/bin/activate
-pip install -e . --no-deps
-alembic upgrade head
-
-Restart backend services only
-systemctl restart surfsense surfsense-celery
-sleep 5
-systemctl status surfsense --no-pager -l | head -15
-
-echo '✅ BACKEND DEPLOYED'
-"
-
-text
-
-### STEP 3: FRONTEND REBUILD (CRITICAL - Follow Exactly)
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
-
-STEP 3.1: STOP service (prevents corruption)
-systemctl stop surfsense-frontend
-echo '✅ Frontend service stopped'
-
-STEP 3.2: CLEAN old build (mandatory)
-cd /opt/SurfSense/surfsense_web
-rm -rf .next
-rm -rf node_modules/.cache
-echo '✅ Old build removed'
-
-STEP 3.3: INSTALL dependencies
-pnpm install --frozen-lockfile
-echo '✅ Dependencies installed'
-
-STEP 3.4: BUILD (test success)
-pnpm build
-if [ $? -eq 0 ]; then
-echo '✅ FRONTEND BUILD SUCCESS'
-else
-echo '❌ FRONTEND BUILD FAILED - ABORTING'
-exit 1
-fi
-
-STEP 3.5: START service (only if build succeeded)
-systemctl start surfsense-frontend
-sleep 10
-
-STEP 3.6: HEALTH CHECK
-curl -I http://localhost:3000 2>&1 | head -5
-
-echo '✅ FRONTEND DEPLOYED'
-"
-
-text
-
-### STEP 4: VERIFY ALL SERVICES
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
-echo '=== ALL SERVICES STATUS ==='
-systemctl status surfsense surfsense-celery surfsense-frontend --no-pager
-
-echo ''
-echo '=== RECENT FRONTEND LOGS ==='
-journalctl -u surfsense-frontend -n 10 --no-pager
-
-echo ''
-echo '=== GIT STATUS ==='
-cd /opt/SurfSense && git log --oneline -3
-
-echo '✅ DEPLOYMENT COMPLETE'
-"
-
-text
-
-### EMERGENCY ROLLBACK (If anything fails)
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
-
-Stop all services
-systemctl stop surfsense surfsense-celery surfsense-frontend
-
-Find latest backup
-cd /opt
-LATEST_BACKUP=$(ls -t SurfSense.backup.*.tar.gz | head -1)
-echo 'Rolling back to: '$LATEST_BACKUP
-
-Restore from backup
-rm -rf SurfSense
-tar -xzf $LATEST_BACKUP
-
-Restart all services
-systemctl start surfsense surfsense-celery surfsense-frontend
-sleep 10
-systemctl status surfsense surfsense-celery surfsense-frontend --no-pager
-
-echo '✅ ROLLBACK COMPLETE'
-"
-
-text
+### GOLDEN RULES (NEVER BREAK)
+1. ✅ Check disk space FIRST (need 2GB+ free)
+2. ✅ Selective backup ONLY (source code, no models)
+3. ✅ STOP frontend service before git pull
+4. ✅ DELETE .next before pnpm build
+5. ✅ VERIFY build success before restart
+6. ❌ NEVER git pull with frontend running
+7. ❌ NEVER backup models directory
 
 ---
 
-*Updated: Dec 31, 2025 - After frontend deployment incident*
-*Incident Report: Git pull without frontend rebuild corrupted .next build directory*
+### STEP 0: Pre-Flight Checks
+
+**Check VPS disk space:**
+```bash
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+  echo '=== DISK SPACE ==='
+  df -h /opt | tail -1
+  echo ''
+  echo '=== DIRECTORY SIZES ==='
+  du -sh /opt/SurfSense/* 2>/dev/null | sort -hr | head -10
+  echo ''
+  FREE=\$(df /opt | tail -1 | awk '{print \$4}')
+  if [ \$FREE -lt 2097152 ]; then
+    echo '❌ INSUFFICIENT SPACE (<2GB)'
+    exit 1
+  else
+    echo \"✅ Available: \$((\$FREE / 1024 / 1024))GB\"
+  fi
+"
+```
+
+**Verify local nightly:**
+```bash
+cd /Users/ojarskapteinis/Documents/Kods/SurfSense
+git checkout nightly && git pull origin nightly
+git log --oneline -5
+echo "✅ Local nightly ready"
+```
+
+---
+
+### STEP 1: Selective Backup (~500MB, 30s)
+
+```bash
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+  cd /opt
+  BACKUP=surfsense_code_\$(date +%Y%m%d_%H%M%S).tar.gz
+
+  tar -czf \$BACKUP \
+    --exclude='SurfSense/surfsense_backend/venv' \
+    --exclude='SurfSense/surfsense_backend/__pycache__' \
+    --exclude='SurfSense/surfsense_backend/uploads' \
+    --exclude='SurfSense/surfsense_web/node_modules' \
+    --exclude='SurfSense/surfsense_web/.next' \
+    --exclude='SurfSense/*.log' \
+    SurfSense
+
+  ls -lh \$BACKUP
+  ls -t surfsense_code_*.tar.gz | tail -n +4 | xargs -r rm
+  echo \"✅ Backup: \$BACKUP\"
+"
+```
+
+---
+
+### STEP 2: Backend Deployment
+
+```bash
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+  cd /opt/SurfSense
+  git stash
+  git checkout nightly
+  git pull origin nightly
+
+  cd surfsense_backend
+  source venv/bin/activate
+  pip install -e . --no-deps
+  alembic upgrade head
+
+  systemctl restart surfsense surfsense-celery surfsense-celery-beat
+  sleep 5
+  systemctl status surfsense --no-pager | head -15
+
+  echo '✅ BACKEND DEPLOYED'
+"
+```
+
+---
+
+### STEP 3: Frontend Rebuild (CRITICAL)
+
+**⚠️ THIS IS WHERE DEC 30 DEPLOYMENT FAILED**
+
+```bash
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+  echo '🚨 CRITICAL: Frontend deployment starting'
+
+  # STOP service (prevents .next corruption)
+  systemctl stop surfsense-frontend
+  sleep 3
+  echo '✅ Service stopped'
+
+  # DELETE old build (mandatory)
+  cd /opt/SurfSense/surfsense_web
+  rm -rf .next node_modules/.cache
+  echo '✅ Old build removed'
+
+  # Install dependencies
+  pnpm install --frozen-lockfile
+  echo '✅ Dependencies installed'
+
+  # BUILD (if fails, ABORT)
+  pnpm build
+  if [ \$? -ne 0 ]; then
+    echo '❌ BUILD FAILED - DEPLOYMENT ABORTED'
+    exit 1
+  fi
+  echo '✅ BUILD SUCCESS'
+
+  # START service
+  systemctl start surfsense-frontend
+  sleep 10
+  curl -I http://localhost:3000 | head -5
+
+  echo '✅ FRONTEND DEPLOYED'
+"
+```
+
+---
+
+### STEP 4: Verification
+
+```bash
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+  echo '=== ALL SERVICES ==='
+  systemctl status surfsense surfsense-celery surfsense-frontend --no-pager | grep -E 'Active:|Main PID'
+
+  echo ''
+  echo '=== HEALTH CHECK ==='
+  curl -I http://localhost:3000 | head -5
+
+  echo ''
+  echo '=== GIT STATUS ==='
+  cd /opt/SurfSense && git log --oneline -3
+
+  echo ''
+  echo '=== DISK AFTER DEPLOY ==='
+  df -h /opt | tail -1
+"
+```
+
+---
+
+### EMERGENCY ROLLBACK
+
+**If Step 3 fails:**
+
+```bash
+ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
+  systemctl stop surfsense surfsense-celery surfsense-frontend
+
+  cd /opt
+  LATEST=\$(ls -t surfsense_code_*.tar.gz | head -1)
+  echo \"Restoring: \$LATEST\"
+
+  rm -rf SurfSense
+  tar -xzf \$LATEST
+
+  cd /opt/SurfSense/surfsense_web
+  rm -rf .next node_modules
+  pnpm install --frozen-lockfile && pnpm build
+
+  systemctl start surfsense surfsense-celery surfsense-frontend
+  sleep 10
+  systemctl status surfsense-frontend --no-pager
+
+  echo '✅ ROLLBACK COMPLETE'
+"
+```
+
+---
+
+*Updated: Dec 31, 2025 - Post-incident deployment protocol*
+*Disk: 55GB free (was 16GB) - Cleanup completed*
 
