@@ -327,6 +327,10 @@ if config.AUTH_TYPE == "GOOGLE":
 
 app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 
+# Include Two-Factor Authentication routes (cookie-based auth with 2FA support)
+from app.routes.two_fa_routes import router as two_fa_router
+app.include_router(two_fa_router, prefix="/api/v1", tags=["2fa"])
+
 # Include JSONata transformation routes
 from app.routes.jsonata_routes import router as jsonata_router
 
