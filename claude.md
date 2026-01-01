@@ -741,3 +741,87 @@ ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
 *Updated: Dec 31, 2025 - Post-incident deployment protocol*
 *Disk: 55GB free (was 16GB) - Cleanup completed*
 
+---
+
+## 🔄 PROTOCOL v3.1 UPDATES (Jan 1, 2026)
+
+### Critical Additions to v3.0
+
+**NEW: Step 0 - Migration Head Check**
+Before deployment, verify single migration head:
+```bash
+cd /opt/SurfSense/surfsense_backend
+source venv/bin/activate
+alembic heads  # Must show only ONE head
+```
+If multiple heads: Create merge migration locally, commit to nightly, THEN deploy.
+
+**NEW: Step 2.5 - Backend Health Check (MANDATORY)**
+After backend restart, before frontend deployment:
+```bash
+# Check service status
+systemctl status surfsense
+
+# Check for ModuleNotFoundError in logs
+journalctl -u surfsense -n 50 | grep -i "modulenotfounderror"
+
+# Test health endpoint
+curl -s http://127.0.0.1:8000/api/health
+
+# Verify port listening
+netstat -tulpn | grep :8000
+```
+
+**Decision Tree:**
+- ✅ Service active + port 8000 listening → Proceed to frontend
+- ⚠️ ModuleNotFoundError → Install missing package, restart, re-check
+- ❌ Service failed → ABORT and rollback
+
+### Lessons Learned (Dec 31, 2025)
+
+**Incident:** Large nightly update (52 files) broke VPS deployment
+
+**Root Causes:**
+1. Multiple migration heads (46 + langgraph) prevented `alembic upgrade head`
+2. Missing dependencies in pyproject.toml:
+   - `fastapi-csrf-protect`
+   - `langchain` + `langchain-core`
+   - `passlib`
+3. Deprecated imports: `langchain.schema` → `langchain_core.messages`
+
+**Resolution:**
+1. Skipped migrations during deployment (deferred to cleanup)
+2. Installed dependencies individually on VPS
+3. Fixed deprecated imports on VPS
+4. Synced all VPS fixes back to nightly (commit a4d9746)
+5. Created merge migration locally (commit f7f09ff)
+
+**New Golden Rules:**
+- Migration conflicts MUST be resolved locally BEFORE deployment
+- All VPS on-the-fly fixes MUST be synced back to nightly immediately
+- Backend health check is MANDATORY before frontend deployment
+- pyproject.toml is the single source of truth for dependencies
+
+### Deployment Checklist v3.1
+
+Pre-flight (local):
+- [ ] `alembic heads` shows single head (if not: create merge migration)
+- [ ] `git log --oneline -5` shows intended commits
+- [ ] Dependencies in pyproject.toml up to date
+
+Deployment (VPS):
+- [ ] Disk space > 2GB free
+- [ ] Selective backup created
+- [ ] Backend deployed and restarted
+- [ ] **NEW:** Backend health check passed (service active, port listening)
+- [ ] Frontend stopped before git pull
+- [ ] .next deleted before pnpm build
+- [ ] Frontend build succeeded
+- [ ] All services restarted and verified
+
+Post-deployment:
+- [ ] Verify production login works
+- [ ] Sync any VPS fixes back to nightly
+- [ ] Update pyproject.toml if dependencies were installed
+- [ ] Create migration merge if heads diverged
+
