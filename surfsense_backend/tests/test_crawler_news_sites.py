@@ -11,6 +11,7 @@ from app.tasks.document_processors.url_crawler import (
     _try_main_tag,
     _try_largest_block_heuristic,
     _extract_article_with_playwright,
+    MIN_CONTENT_LENGTH,
 )
 
 
@@ -152,14 +153,13 @@ async def test_extraction_with_minimal_content():
 
     headline, body, metadata = await _extract_article_with_playwright(url)
 
-    # This Wikipedia page should extract successfully using article tag strategy
-    # Since it's a stable, known page, we can verify extraction worked
-    if headline or body:
-        assert metadata.get("extraction_strategy") is not None
-        assert body is not None  # Should have some content
-    else:
-        # If extraction fails, it should be logged properly
-        assert "error" in metadata or metadata.get("extraction_strategy") == "none"
+    # Wikipedia uses semantic HTML with <article> tags, so extraction should succeed
+    # Using a fixed URL allows stronger assertions for deterministic testing
+    assert headline is not None, "Headline extraction should succeed for known Wikipedia page"
+    assert body is not None, "Body extraction should succeed for known Wikipedia page"
+    assert len(body) > MIN_CONTENT_LENGTH, f"Extracted content should be substantial (>{MIN_CONTENT_LENGTH} chars)"
+    assert metadata.get("extraction_strategy") == "article_tag", "Wikipedia should use article tag strategy"
+    assert metadata.get("title") is not None, "Metadata should include title"
 
 
 # NOTE: Tests for BBC, CNN, Reuters would require finding stable article URLs
