@@ -146,15 +146,17 @@ async def test_extraction_with_minimal_content():
     The heuristic requires at least 5 paragraphs by default, so pages with
     less content should fail gracefully.
     """
-    # Use a very short Wikipedia page or similar
-    url = "https://en.wikipedia.org/wiki/Special:Random"  # Random Wikipedia page
+    # Use a known short Wikipedia page with minimal content
+    # "2i" is a stub article about a UK music magazine with limited content
+    url = "https://en.wikipedia.org/wiki/2i"
 
     headline, body, metadata = await _extract_article_with_playwright(url)
 
-    # Random Wikipedia pages should generally extract successfully
-    # This test mainly verifies no crashes occur
+    # This Wikipedia page should extract successfully using article tag strategy
+    # Since it's a stable, known page, we can verify extraction worked
     if headline or body:
         assert metadata.get("extraction_strategy") is not None
+        assert body is not None  # Should have some content
     else:
         # If extraction fails, it should be logged properly
         assert "error" in metadata or metadata.get("extraction_strategy") == "none"
