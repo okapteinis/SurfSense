@@ -69,27 +69,23 @@ MOCK_WHISPER_RESULT = {
 @patch("app.utils.youtube_utils.YouTubeTranscriptApi")
 def test_youtube_api_success_no_proxy(MockYouTubeAPI):
     """Test successful YouTube API transcript fetch without proxy."""
-    # Mock instance and its fetch method
-    mock_instance = MagicMock()
-    mock_instance.fetch.return_value = MOCK_YOUTUBE_TRANSCRIPT_OBJECTS
-    MockYouTubeAPI.return_value = mock_instance
+    # Mock get_transcript class method to return dicts directly
+    MockYouTubeAPI.get_transcript.return_value = MOCK_YOUTUBE_TRANSCRIPT_DICTS
 
     result = get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
 
     assert result == MOCK_YOUTUBE_TRANSCRIPT_DICTS
     assert len(result) == 3
     assert result[0]["text"] == "Hello world"
-    mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", proxies=None)
+    MockYouTubeAPI.get_transcript.assert_called_once_with("dQw4w9WgXcQ", proxies=None)
 
 
 @patch.dict(os.environ, {"YOUTUBE_PROXY_ENABLED": "true", "YOUTUBE_PROXY_URL": "http://proxy.example.com:8080"})
 @patch("app.utils.youtube_utils.YouTubeTranscriptApi")
 def test_youtube_api_success_with_proxy(MockYouTubeAPI):
     """Test successful YouTube API transcript fetch with proxy enabled."""
-    # Mock instance and its fetch method
-    mock_instance = MagicMock()
-    mock_instance.fetch.return_value = MOCK_YOUTUBE_TRANSCRIPT_OBJECTS
-    MockYouTubeAPI.return_value = mock_instance
+    # Mock get_transcript class method to return dicts directly
+    MockYouTubeAPI.get_transcript.return_value = MOCK_YOUTUBE_TRANSCRIPT_DICTS
 
     result = get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
 
@@ -99,15 +95,13 @@ def test_youtube_api_success_with_proxy(MockYouTubeAPI):
         "http": "http://proxy.example.com:8080",
         "https": "http://proxy.example.com:8080",
     }
-    mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", proxies=expected_proxies)
+    MockYouTubeAPI.get_transcript.assert_called_once_with("dQw4w9WgXcQ", proxies=expected_proxies)
 
 
 @patch("app.utils.youtube_utils.YouTubeTranscriptApi")
 def test_youtube_api_transcripts_disabled(MockYouTubeAPI):
     """Test YouTube API when transcripts are disabled for video."""
-    mock_instance = MagicMock()
-    mock_instance.fetch.side_effect = TranscriptsDisabled("dQw4w9WgXcQ")
-    MockYouTubeAPI.return_value = mock_instance
+    MockYouTubeAPI.get_transcript.side_effect = TranscriptsDisabled("dQw4w9WgXcQ")
 
     with pytest.raises(TranscriptsDisabled):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
@@ -116,9 +110,7 @@ def test_youtube_api_transcripts_disabled(MockYouTubeAPI):
 @patch("app.utils.youtube_utils.YouTubeTranscriptApi")
 def test_youtube_api_no_transcript_found(MockYouTubeAPI):
     """Test YouTube API when no transcript is available."""
-    mock_instance = MagicMock()
-    mock_instance.fetch.side_effect = NoTranscriptFound("dQw4w9WgXcQ", [], None)
-    MockYouTubeAPI.return_value = mock_instance
+    MockYouTubeAPI.get_transcript.side_effect = NoTranscriptFound("dQw4w9WgXcQ", [], None)
 
     with pytest.raises(NoTranscriptFound):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
@@ -127,9 +119,7 @@ def test_youtube_api_no_transcript_found(MockYouTubeAPI):
 @patch("app.utils.youtube_utils.YouTubeTranscriptApi")
 def test_youtube_api_video_unavailable(MockYouTubeAPI):
     """Test YouTube API when video is unavailable."""
-    mock_instance = MagicMock()
-    mock_instance.fetch.side_effect = VideoUnavailable("dQw4w9WgXcQ")
-    MockYouTubeAPI.return_value = mock_instance
+    MockYouTubeAPI.get_transcript.side_effect = VideoUnavailable("dQw4w9WgXcQ")
 
     with pytest.raises(VideoUnavailable):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
@@ -138,9 +128,7 @@ def test_youtube_api_video_unavailable(MockYouTubeAPI):
 @patch("app.utils.youtube_utils.YouTubeTranscriptApi")
 def test_youtube_api_could_not_retrieve(MockYouTubeAPI):
     """Test YouTube API when retrieval fails (blocking, rate limit, etc.)."""
-    mock_instance = MagicMock()
-    mock_instance.fetch.side_effect = CouldNotRetrieveTranscript("dQw4w9WgXcQ")
-    MockYouTubeAPI.return_value = mock_instance
+    MockYouTubeAPI.get_transcript.side_effect = CouldNotRetrieveTranscript("dQw4w9WgXcQ")
 
     with pytest.raises(CouldNotRetrieveTranscript):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")

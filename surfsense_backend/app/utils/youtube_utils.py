@@ -122,17 +122,11 @@ def get_youtube_transcript_with_proxy(video_id: str) -> list[dict]:
             }
 
         # Use YouTubeTranscriptApi with proxies parameter (thread-safe)
-        ytt_api = YouTubeTranscriptApi()
-        transcript_list = ytt_api.fetch(video_id, proxies=proxies)
+        # Note: get_transcript() returns list of dicts, not objects
+        transcript_list = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxies)
 
-        # Convert transcript objects to dict format
-        transcript_segments = []
-        for line in transcript_list:
-            transcript_segments.append({
-                "text": line.text,
-                "start": line.start,
-                "duration": line.duration,
-            })
+        # transcript_list is already in dict format with 'text', 'start', 'duration' keys
+        transcript_segments = transcript_list
 
         logger.info(f"Successfully fetched {len(transcript_segments)} transcript segments via YouTube API")
         return transcript_segments
