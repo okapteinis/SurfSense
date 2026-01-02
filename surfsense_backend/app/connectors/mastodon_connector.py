@@ -103,11 +103,14 @@ class MastodonConnector:
                         error_text = await response.text()
                         return None, f"API error {response.status}: {error_text}"
         except aiohttp.ClientConnectorError as e:
-            return None, f"Connection error: Unable to reach {self.instance_url}. {e!s}"
-        except TimeoutError:
-            return None, f"Request timeout connecting to {self.instance_url}"
+            logger.error(f"Mastodon connection error: {e}", exc_info=True)
+            return None, f"Connection error: Unable to reach {self.instance_url}."
+        except TimeoutError as e:
+            logger.error(f"Mastodon timeout error: {e}", exc_info=True)
+            return None, f"Request timeout connecting to {self.instance_url}."
         except Exception as e:
-            return None, f"Unexpected error: {e!s}"
+            logger.error(f"Mastodon unexpected error: {e}", exc_info=True)
+            return None, "Unexpected error occurred while communicating with the Mastodon instance."
 
     async def _paginate_request(
         self, endpoint: str, params: dict | None = None, max_items: int = 200

@@ -97,11 +97,14 @@ class HomeAssistantConnector:
                         error_text = await response.text()
                         return None, f"API error {response.status}: {error_text}"
         except aiohttp.ClientConnectorError as e:
-            return None, f"Connection error: Unable to reach Home Assistant at {self.ha_url}. {e!s}"
-        except TimeoutError:
-            return None, f"Request timeout connecting to {self.ha_url}"
+            logger.error(f"Home Assistant connection error: {e}", exc_info=True)
+            return None, f"Connection error: Unable to reach Home Assistant at {self.ha_url}."
+        except TimeoutError as e:
+            logger.error(f"Home Assistant timeout error: {e}", exc_info=True)
+            return None, f"Request timeout connecting to {self.ha_url}."
         except Exception as e:
-            return None, f"Unexpected error: {e!s}"
+            logger.error(f"Home Assistant unexpected error: {e}", exc_info=True)
+            return None, "Unexpected error while communicating with Home Assistant."
 
     async def test_connection(self) -> tuple[bool, str | None]:
         """

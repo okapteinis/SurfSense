@@ -130,7 +130,7 @@ async def get_csrf_token(
         logger.error(f"CSRF token generation failed: {e!s}", exc_info=True)
         return {
             "error": "Failed to generate CSRF token",
-            "message": str(e)
+            "message": "An internal error occurred while generating the CSRF token."
         }
 
 
