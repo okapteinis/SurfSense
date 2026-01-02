@@ -121,8 +121,8 @@ if git diff --cached | grep -E "AKIA[0-9A-Z]{16}"; then
 fi
 
 # Check for private key headers
-# Exclude lines that are comments or strings in code (like this hook itself)
-if git diff --cached | grep "BEGIN.*PRIVATE KEY" | grep -v "^+.*#" | grep -v "^+.*grep" | grep -q "."; then
+# Exclude .githooks directory itself to avoid false positives
+if git diff --cached --name-only --diff-filter=ACM | grep -v "^\.githooks/" | xargs -r git diff --cached | grep -q "BEGIN.*PRIVATE KEY"; then
     echo -e "${RED}❌ ERROR: Private key detected in staged changes${NC}"
     echo "      Never commit private keys to version control"
     FOUND_SENSITIVE=1
