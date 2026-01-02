@@ -27,6 +27,9 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = SCRIPT_DIR.parent.parent / "debug_output"
 
+# Ensure output directory exists before logging setup
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
+
 # Content extraction thresholds (configurable constants)
 MIN_PARAGRAPH_LENGTH = 20  # Minimum character count for valid paragraphs
 MIN_PARAGRAPH_COUNT = 3    # Minimum paragraphs required for valid extraction
