@@ -7,7 +7,7 @@ It provides detailed logging, network monitoring, bot detection checks, and mult
 content extraction strategies.
 
 Usage:
-    python debug_crawler_aljazeera.py <URL> [--headless]
+    python debug_crawler_aljazeera.py <URL> [--headless/--no-headless]
 
 Example:
     python debug_crawler_aljazeera.py \
@@ -22,8 +22,17 @@ import logging
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any
-from urllib.parse import urlparse
+
+# Determine output directory relative to this script's location
+SCRIPT_DIR = Path(__file__).resolve().parent
+OUTPUT_DIR = SCRIPT_DIR.parent.parent / "debug_output"
+
+# Content extraction thresholds (configurable constants)
+MIN_PARAGRAPH_LENGTH = 20  # Minimum character count for valid paragraphs
+MIN_PARAGRAPH_COUNT = 3    # Minimum paragraphs required for valid extraction
+PAGE_LOAD_TIMEOUT = 30000  # Page navigation timeout in milliseconds
+CONTENT_WAIT_TIMEOUT = 10000  # Content selector wait timeout in milliseconds
+NETWORK_IDLE_TIMEOUT = 5000  # Network idle timeout in milliseconds
 
 # Configure logging with timestamps
 logging.basicConfig(
@@ -31,7 +40,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('debug_output/crawler_debug.log')
+        logging.FileHandler(OUTPUT_DIR / 'crawler_debug.log')
     ]
 )
 
@@ -99,20 +108,10 @@ class AlJazeeraCrawlerDiagnostic:
             "errors": []
         }
 
-        # Network monitoring lists
-        self.requests = []
-        self.responses = []
-
     async def _handle_request(self, request: Request) -> None:
         """Log all outgoing HTTP requests."""
         try:
             logger.debug(f"REQUEST: {request.method} {request.url}")
-            self.requests.append({
-                "method": request.method,
-                "url": request.url,
-                "resource_type": request.resource_type,
-                "timestamp": datetime.now().isoformat()
-            })
             self.results["network_activity"]["total_requests"] += 1
 
             # Track resource types
@@ -136,12 +135,6 @@ class AlJazeeraCrawlerDiagnostic:
         """Log all incoming HTTP responses."""
         try:
             logger.debug(f"RESPONSE: {response.status} {response.url}")
-            self.responses.append({
-                "status": response.status,
-                "url": response.url,
-                "content_type": response.headers.get("content-type", ""),
-                "timestamp": datetime.now().isoformat()
-            })
             self.results["network_activity"]["total_responses"] += 1
 
             # Check for rate limiting
@@ -225,12 +218,13 @@ class AlJazeeraCrawlerDiagnostic:
             paragraphs = []
             for p in paragraphs_elems:
                 text = await p.inner_text()
-                if text and len(text.strip()) > 20:  # Filter out short/empty paragraphs
+                if text and len(text.strip()) > MIN_PARAGRAPH_LENGTH:
                     paragraphs.append(text.strip())
 
             if headline and paragraphs:
                 logger.info(f"✅ Successfully extracted via <article> tag: {len(paragraphs)} paragraphs")
                 return {
+                    "strategy": "article_tag",
                     "headline": headline,
                     "paragraphs": paragraphs,
                     "paragraph_count": len(paragraphs)
@@ -271,12 +265,13 @@ class AlJazeeraCrawlerDiagnostic:
                 paragraphs = []
                 for p in paragraphs_elems:
                     text = await p.inner_text()
-                    if text and len(text.strip()) > 20:
+                    if text and len(text.strip()) > MIN_PARAGRAPH_LENGTH:
                         paragraphs.append(text.strip())
 
-                if headline and len(paragraphs) >= 3:  # Require at least 3 substantial paragraphs
+                if headline and len(paragraphs) >= MIN_PARAGRAPH_COUNT:
                     logger.info(f"✅ Successfully extracted via <main> tag: {len(paragraphs)} paragraphs")
                     return {
+                        "strategy": "main_tag",
                         "headline": headline,
                         "paragraphs": paragraphs,
                         "paragraph_count": len(paragraphs)
@@ -313,7 +308,7 @@ class AlJazeeraCrawlerDiagnostic:
                     max_paragraphs = paragraph_count
                     best_candidate = candidate
 
-            if best_candidate and max_paragraphs >= 3:
+            if best_candidate and max_paragraphs >= MIN_PARAGRAPH_COUNT:
                 # Extract headline (look for h1 anywhere on page)
                 headline_elem = await page.query_selector("h1")
                 headline = await headline_elem.inner_text() if headline_elem else None
@@ -323,12 +318,13 @@ class AlJazeeraCrawlerDiagnostic:
                 paragraphs = []
                 for p in paragraphs_elems:
                     text = await p.inner_text()
-                    if text and len(text.strip()) > 20:
+                    if text and len(text.strip()) > MIN_PARAGRAPH_LENGTH:
                         paragraphs.append(text.strip())
 
                 if paragraphs:
                     logger.info(f"✅ Successfully extracted via largest block: {len(paragraphs)} paragraphs")
                     return {
+                        "strategy": "largest_block_heuristic",
                         "headline": headline,
                         "paragraphs": paragraphs,
                         "paragraph_count": len(paragraphs)
@@ -376,137 +372,144 @@ class AlJazeeraCrawlerDiagnostic:
         logger.info(f"Starting diagnostic for URL: {self.url}")
         logger.info(f"Headless mode: {self.headless}")
 
+        browser = None  # Initialize to ensure cleanup in finally block
+
         try:
             async with async_playwright() as p:
-                # Launch browser
-                browser = await p.chromium.launch(headless=self.headless)
-                logger.info("✅ Browser launched successfully")
-
-                # Create context with realistic user agent
-                context = await browser.new_context(
-                    user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-                    viewport={"width": 1920, "height": 1080}
-                )
-
-                page = await context.new_page()
-
-                # Set up network monitoring
-                page.on("request", lambda req: asyncio.create_task(self._handle_request(req)))
-                page.on("response", lambda res: asyncio.create_task(self._handle_response(res)))
-
-                # Capture console messages and errors
-                page.on("console", lambda msg: logger.debug(f"CONSOLE: {msg.type}: {msg.text}"))
-                page.on("pageerror", lambda err: logger.error(f"PAGE ERROR: {err}"))
-
-                # STEP 1: Navigate to URL
-                logger.info("Navigating to URL...")
-                screenshot_counter = 1
-
                 try:
-                    response = await page.goto(self.url, wait_until="domcontentloaded", timeout=30000)
-                    page_load_time = (datetime.now() - start_time).total_seconds()
-                    self.results["performance"]["page_load_time"] = page_load_time
-                    logger.info(f"✅ Page loaded in {page_load_time:.2f}s")
+                    # Launch browser
+                    browser = await p.chromium.launch(headless=self.headless)
+                    logger.info("✅ Browser launched successfully")
 
-                    if response:
-                        self.results["status_code"] = response.status
-                        logger.info(f"HTTP Status: {response.status}")
+                    # Create context with realistic user agent
+                    context = await browser.new_context(
+                        user_agent="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                        viewport={"width": 1920, "height": 1080}
+                    )
 
-                    # Screenshot after page load
-                    await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_page_load.png")
-                    logger.info(f"Screenshot saved: step{screenshot_counter}_page_load.png")
+                    page = await context.new_page()
+
+                    # Set up network monitoring
+                    page.on("request", lambda req: asyncio.create_task(self._handle_request(req)))
+                    page.on("response", lambda res: asyncio.create_task(self._handle_response(res)))
+
+                    # Capture console messages and errors
+                    page.on("console", lambda msg: logger.debug(f"CONSOLE: {msg.type}: {msg.text}"))
+                    page.on("pageerror", lambda err: logger.error(f"PAGE ERROR: {err}"))
+
+                    # STEP 1: Navigate to URL
+                    logger.info("Navigating to URL...")
+                    screenshot_counter = 1
+
+                    try:
+                        response = await page.goto(self.url, wait_until="domcontentloaded", timeout=PAGE_LOAD_TIMEOUT)
+                        page_load_time = (datetime.now() - start_time).total_seconds()
+                        self.results["performance"]["page_load_time"] = page_load_time
+                        logger.info(f"✅ Page loaded in {page_load_time:.2f}s")
+
+                        if response:
+                            self.results["status_code"] = response.status
+                            logger.info(f"HTTP Status: {response.status}")
+
+                        # Screenshot after page load
+                        await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_page_load.png")
+                        logger.info(f"Screenshot saved: step{screenshot_counter}_page_load.png")
+                        screenshot_counter += 1
+
+                    except PlaywrightTimeoutError:
+                        logger.error(f"⏱️ Page load timeout ({PAGE_LOAD_TIMEOUT/1000}s exceeded)")
+                        self.results["errors"].append(f"Page load timeout after {PAGE_LOAD_TIMEOUT/1000} seconds")
+                        await page.screenshot(path=self.output_dir / "error_timeout.png")
+                        return self.results
+
+                    # STEP 2: Check for bot detection
+                    await self._check_bot_detection(page)
+
+                    # Screenshot after bot detection check
+                    await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_bot_check.png")
                     screenshot_counter += 1
 
-                except PlaywrightTimeoutError:
-                    logger.error("⏱️ Page load timeout (30s exceeded)")
-                    self.results["errors"].append("Page load timeout after 30 seconds")
-                    await page.screenshot(path=self.output_dir / "error_timeout.png")
-                    return self.results
+                    # STEP 3: Wait for main content to be ready
+                    logger.info("Waiting for main content...")
+                    content_ready_start = datetime.now()
 
-                # STEP 2: Check for bot detection
-                await self._check_bot_detection(page)
+                    try:
+                        # Try multiple selectors for article content
+                        await page.wait_for_selector(
+                            "article, main, [role='main'], [class*='article']",
+                            timeout=CONTENT_WAIT_TIMEOUT
+                        )
+                        content_ready_time = (datetime.now() - content_ready_start).total_seconds()
+                        self.results["performance"]["content_ready_time"] = content_ready_time
+                        logger.info(f"✅ Content ready in {content_ready_time:.2f}s")
+                    except PlaywrightTimeoutError:
+                        logger.warning("⏱️ Content selector timeout, proceeding anyway...")
 
-                # Screenshot after bot detection check
-                await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_bot_check.png")
-                screenshot_counter += 1
+                    # Also wait for network idle as fallback
+                    try:
+                        await page.wait_for_load_state("networkidle", timeout=NETWORK_IDLE_TIMEOUT)
+                        logger.info("✅ Network idle reached")
+                    except PlaywrightTimeoutError:
+                        logger.warning("⏱️ Network idle timeout, proceeding anyway...")
 
-                # STEP 3: Wait for main content to be ready
-                logger.info("Waiting for main content...")
-                content_ready_start = datetime.now()
+                    # Screenshot after waiting for content
+                    await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_content_wait.png")
+                    screenshot_counter += 1
 
-                try:
-                    # Try multiple selectors for article content
-                    await page.wait_for_selector(
-                        "article, main, [role='main'], [class*='article']",
-                        timeout=10000
-                    )
-                    content_ready_time = (datetime.now() - content_ready_start).total_seconds()
-                    self.results["performance"]["content_ready_time"] = content_ready_time
-                    logger.info(f"✅ Content ready in {content_ready_time:.2f}s")
-                except PlaywrightTimeoutError:
-                    logger.warning("⏱️ Content selector timeout, proceeding anyway...")
+                    # STEP 4: Extract content using multiple strategies
+                    logger.info("Attempting content extraction...")
+                    extracted_data = None
 
-                # Also wait for network idle as fallback
-                try:
-                    await page.wait_for_load_state("networkidle", timeout=5000)
-                    logger.info("✅ Network idle reached")
-                except PlaywrightTimeoutError:
-                    logger.warning("⏱️ Network idle timeout, proceeding anyway...")
+                    # Try strategies in order
+                    strategies = [
+                        self._extract_content_strategy_article_tag,
+                        self._extract_content_strategy_main_tag,
+                        self._extract_content_strategy_largest_block
+                    ]
 
-                # Screenshot after waiting for content
-                await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_content_wait.png")
-                screenshot_counter += 1
+                    for strategy in strategies:
+                        extracted_data = await strategy(page)
+                        if extracted_data:
+                            self.results["content_extraction"]["successful_strategy"] = extracted_data.get("strategy", "unknown")
+                            break
 
-                # STEP 4: Extract content using multiple strategies
-                logger.info("Attempting content extraction...")
-                extracted_data = None
-
-                # Try strategies in order
-                strategies = [
-                    self._extract_content_strategy_article_tag,
-                    self._extract_content_strategy_main_tag,
-                    self._extract_content_strategy_largest_block
-                ]
-
-                for strategy in strategies:
-                    extracted_data = await strategy(page)
                     if extracted_data:
-                        self.results["content_extraction"]["successful_strategy"] = extracted_data.get("strategy", "unknown")
-                        break
+                        self.results["content_extraction"]["headline"] = extracted_data.get("headline")
+                        self.results["content_extraction"]["paragraph_count"] = extracted_data.get("paragraph_count", 0)
+                        paragraphs = extracted_data.get("paragraphs", [])
+                        total_text = "\n\n".join(paragraphs)
+                        self.results["content_extraction"]["total_text_length"] = len(total_text)
+                        self.results["content_extraction"]["body_preview"] = total_text[:500] + "..." if total_text else None
+                        self.results["success"] = True
+                        logger.info("✅ Content extraction SUCCESSFUL")
+                    else:
+                        logger.error("❌ All extraction strategies FAILED")
+                        self.results["errors"].append("All content extraction strategies failed")
 
-                if extracted_data:
-                    self.results["content_extraction"]["headline"] = extracted_data.get("headline")
-                    self.results["content_extraction"]["paragraph_count"] = extracted_data.get("paragraph_count", 0)
-                    paragraphs = extracted_data.get("paragraphs", [])
-                    total_text = "\n\n".join(paragraphs)
-                    self.results["content_extraction"]["total_text_length"] = len(total_text)
-                    self.results["content_extraction"]["body_preview"] = total_text[:500] + "..." if total_text else None
-                    self.results["success"] = True
-                    logger.info("✅ Content extraction SUCCESSFUL")
-                else:
-                    logger.error("❌ All extraction strategies FAILED")
-                    self.results["errors"].append("All content extraction strategies failed")
+                    # STEP 5: Extract metadata
+                    metadata = await self._extract_metadata(page)
+                    self.results["content_extraction"]["author"] = metadata.get("author")
+                    self.results["content_extraction"]["date"] = metadata.get("published_date")
 
-                # STEP 5: Extract metadata
-                metadata = await self._extract_metadata(page)
-                self.results["content_extraction"]["author"] = metadata.get("author")
-                self.results["content_extraction"]["date"] = metadata.get("published_date")
+                    # Screenshot after content extraction
+                    await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_extraction_done.png")
+                    screenshot_counter += 1
 
-                # Screenshot after content extraction
-                await page.screenshot(path=self.output_dir / f"step{screenshot_counter}_extraction_done.png")
-                screenshot_counter += 1
+                    # STEP 6: Save full HTML
+                    html_content = await page.content()
+                    html_file = self.output_dir / "aljazeera_dump.html"
+                    html_file.write_text(html_content, encoding="utf-8")
+                    logger.info(f"✅ HTML saved to: {html_file}")
 
-                # STEP 6: Save full HTML
-                html_content = await page.content()
-                html_file = self.output_dir / "aljazeera_dump.html"
-                html_file.write_text(html_content, encoding="utf-8")
-                logger.info(f"✅ HTML saved to: {html_file}")
+                    # Get current URL (after any redirects)
+                    current_url = page.url
+                    logger.info(f"Final URL: {current_url}")
 
-                # Get current URL (after any redirects)
-                current_url = page.url
-                logger.info(f"Final URL: {current_url}")
-
-                await browser.close()
+                finally:
+                    # Ensure browser closes even if errors occur
+                    if browser:
+                        await browser.close()
+                        logger.debug("Browser closed successfully")
 
         except Exception as e:
             logger.error(f"❌ Diagnostic failed with exception: {e}", exc_info=True)
@@ -565,7 +568,12 @@ async def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Diagnose Al Jazeera web crawler issues")
     parser.add_argument("url", help="Al Jazeera article URL to test")
-    parser.add_argument("--headless", action="store_true", help="Run browser in headless mode")
+    parser.add_argument(
+        "--headless",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="Run browser in headless mode (use --no-headless for visible browser)"
+    )
     args = parser.parse_args()
 
     diagnostic = AlJazeeraCrawlerDiagnostic(args.url, headless=args.headless)
