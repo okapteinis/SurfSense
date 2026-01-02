@@ -29,8 +29,24 @@ from app.utils.youtube_utils import (
 )
 
 
-# Sample transcript data for mocking
-MOCK_YOUTUBE_TRANSCRIPT = [
+# Helper to create transcript segment objects with attributes
+class MockTranscriptSegment:
+    """Mock object simulating YouTubeTranscriptApi segment with attributes."""
+    def __init__(self, text: str, start: float, duration: float):
+        self.text = text
+        self.start = start
+        self.duration = duration
+
+
+# Sample transcript data for mocking (as objects with attributes)
+MOCK_YOUTUBE_TRANSCRIPT_OBJECTS = [
+    MockTranscriptSegment("Hello world", 0.0, 2.5),
+    MockTranscriptSegment("This is a test", 2.5, 3.0),
+    MockTranscriptSegment("End of video", 5.5, 2.0),
+]
+
+# Expected dict format after conversion
+MOCK_YOUTUBE_TRANSCRIPT_DICTS = [
     {"text": "Hello world", "start": 0.0, "duration": 2.5},
     {"text": "This is a test", "start": 2.5, "duration": 3.0},
     {"text": "End of video", "start": 5.5, "duration": 2.0},
@@ -50,64 +66,81 @@ MOCK_WHISPER_RESULT = {
 # =============================================================================
 
 
-@patch("app.utils.youtube_utils.YouTubeTranscriptApi.get_transcript")
-def test_youtube_api_success_no_proxy(mock_get_transcript):
+@patch("app.utils.youtube_utils.YouTubeTranscriptApi")
+def test_youtube_api_success_no_proxy(MockYouTubeAPI):
     """Test successful YouTube API transcript fetch without proxy."""
-    mock_get_transcript.return_value = MOCK_YOUTUBE_TRANSCRIPT
+    # Mock instance and its fetch method
+    mock_instance = MagicMock()
+    mock_instance.fetch.return_value = MOCK_YOUTUBE_TRANSCRIPT_OBJECTS
+    MockYouTubeAPI.return_value = mock_instance
 
     result = get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
 
-    assert result == MOCK_YOUTUBE_TRANSCRIPT
+    assert result == MOCK_YOUTUBE_TRANSCRIPT_DICTS
     assert len(result) == 3
     assert result[0]["text"] == "Hello world"
-    mock_get_transcript.assert_called_once_with("dQw4w9WgXcQ")
+    mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", proxies=None)
 
 
 @patch.dict(os.environ, {"YOUTUBE_PROXY_ENABLED": "true", "YOUTUBE_PROXY_URL": "http://proxy.example.com:8080"})
-@patch("app.utils.youtube_utils.YouTubeTranscriptApi.get_transcript")
-def test_youtube_api_success_with_proxy(mock_get_transcript):
+@patch("app.utils.youtube_utils.YouTubeTranscriptApi")
+def test_youtube_api_success_with_proxy(MockYouTubeAPI):
     """Test successful YouTube API transcript fetch with proxy enabled."""
-    mock_get_transcript.return_value = MOCK_YOUTUBE_TRANSCRIPT
+    # Mock instance and its fetch method
+    mock_instance = MagicMock()
+    mock_instance.fetch.return_value = MOCK_YOUTUBE_TRANSCRIPT_OBJECTS
+    MockYouTubeAPI.return_value = mock_instance
 
-    with patch.dict(os.environ, {}, clear=False):
-        result = get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
+    result = get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
 
-    assert result == MOCK_YOUTUBE_TRANSCRIPT
-    # Verify environment proxy was set (proxy is set via os.environ in the function)
-    mock_get_transcript.assert_called_once()
+    assert result == MOCK_YOUTUBE_TRANSCRIPT_DICTS
+    # Verify proxies were passed correctly
+    expected_proxies = {
+        "http": "http://proxy.example.com:8080",
+        "https": "http://proxy.example.com:8080",
+    }
+    mock_instance.fetch.assert_called_once_with("dQw4w9WgXcQ", proxies=expected_proxies)
 
 
-@patch("app.utils.youtube_utils.YouTubeTranscriptApi.get_transcript")
-def test_youtube_api_transcripts_disabled(mock_get_transcript):
+@patch("app.utils.youtube_utils.YouTubeTranscriptApi")
+def test_youtube_api_transcripts_disabled(MockYouTubeAPI):
     """Test YouTube API when transcripts are disabled for video."""
-    mock_get_transcript.side_effect = TranscriptsDisabled("dQw4w9WgXcQ")
+    mock_instance = MagicMock()
+    mock_instance.fetch.side_effect = TranscriptsDisabled("dQw4w9WgXcQ")
+    MockYouTubeAPI.return_value = mock_instance
 
     with pytest.raises(TranscriptsDisabled):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
 
 
-@patch("app.utils.youtube_utils.YouTubeTranscriptApi.get_transcript")
-def test_youtube_api_no_transcript_found(mock_get_transcript):
+@patch("app.utils.youtube_utils.YouTubeTranscriptApi")
+def test_youtube_api_no_transcript_found(MockYouTubeAPI):
     """Test YouTube API when no transcript is available."""
-    mock_get_transcript.side_effect = NoTranscriptFound("dQw4w9WgXcQ", [], None)
+    mock_instance = MagicMock()
+    mock_instance.fetch.side_effect = NoTranscriptFound("dQw4w9WgXcQ", [], None)
+    MockYouTubeAPI.return_value = mock_instance
 
     with pytest.raises(NoTranscriptFound):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
 
 
-@patch("app.utils.youtube_utils.YouTubeTranscriptApi.get_transcript")
-def test_youtube_api_video_unavailable(mock_get_transcript):
+@patch("app.utils.youtube_utils.YouTubeTranscriptApi")
+def test_youtube_api_video_unavailable(MockYouTubeAPI):
     """Test YouTube API when video is unavailable."""
-    mock_get_transcript.side_effect = VideoUnavailable("dQw4w9WgXcQ")
+    mock_instance = MagicMock()
+    mock_instance.fetch.side_effect = VideoUnavailable("dQw4w9WgXcQ")
+    MockYouTubeAPI.return_value = mock_instance
 
     with pytest.raises(VideoUnavailable):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
 
 
-@patch("app.utils.youtube_utils.YouTubeTranscriptApi.get_transcript")
-def test_youtube_api_could_not_retrieve(mock_get_transcript):
+@patch("app.utils.youtube_utils.YouTubeTranscriptApi")
+def test_youtube_api_could_not_retrieve(MockYouTubeAPI):
     """Test YouTube API when retrieval fails (blocking, rate limit, etc.)."""
-    mock_get_transcript.side_effect = CouldNotRetrieveTranscript("dQw4w9WgXcQ")
+    mock_instance = MagicMock()
+    mock_instance.fetch.side_effect = CouldNotRetrieveTranscript("dQw4w9WgXcQ")
+    MockYouTubeAPI.return_value = mock_instance
 
     with pytest.raises(CouldNotRetrieveTranscript):
         get_youtube_transcript_with_proxy("dQw4w9WgXcQ")
@@ -123,19 +156,20 @@ def test_youtube_api_could_not_retrieve(mock_get_transcript):
 @patch("app.utils.youtube_utils._get_whisper_model")
 @patch("app.utils.youtube_utils.yt_dlp.YoutubeDL")
 @patch("app.utils.youtube_utils.Path")
-@patch("app.utils.youtube_utils.tempfile.NamedTemporaryFile")
+@patch("app.utils.youtube_utils.tempfile.mkdtemp")
 def test_whisper_transcription_success(
-    mock_tempfile, mock_path_class, mock_ytdl, mock_get_model
+    mock_mkdtemp, mock_path_class, mock_ytdl, mock_get_model
 ):
     """Test successful Whisper ASR transcription."""
     # Setup mocks
-    mock_temp = MagicMock()
-    mock_temp.name = "/tmp/audio_test.m4a"
-    mock_tempfile.return_value.__enter__.return_value = mock_temp
+    mock_temp_dir = "/tmp/temp_audio_dir_12345"
+    mock_mkdtemp.return_value = mock_temp_dir
 
+    # Mock Path for the audio file
     mock_path = MagicMock()
     mock_path.exists.return_value = True
     mock_path.stat.return_value.st_size = 5 * 1024 * 1024  # 5 MB
+    mock_path.parent = MagicMock()  # temp directory
     mock_path_class.return_value = mock_path
 
     mock_model = MagicMock()
@@ -144,6 +178,7 @@ def test_whisper_transcription_success(
 
     mock_ydl_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_ydl_instance
+    mock_ydl_instance.extract_info.return_value = {"id": "dQw4w9WgXcQ"}  # Success
 
     # Execute
     result = get_youtube_transcript_with_whisper(
@@ -157,7 +192,7 @@ def test_whisper_transcription_success(
     assert result[0]["start"] == 0.0
     assert result[0]["duration"] == 2.5
 
-    mock_ydl_instance.download.assert_called_once()
+    mock_ydl_instance.extract_info.assert_called_once()
     mock_model.transcribe.assert_called_once()
 
 
@@ -187,19 +222,20 @@ def test_ytdlp_not_installed():
 @patch("app.utils.youtube_utils._get_whisper_model")
 @patch("app.utils.youtube_utils.yt_dlp.YoutubeDL")
 @patch("app.utils.youtube_utils.Path")
-@patch("app.utils.youtube_utils.tempfile.NamedTemporaryFile")
+@patch("app.utils.youtube_utils.tempfile.mkdtemp")
 def test_whisper_cleanup_on_error(
-    mock_tempfile, mock_path_class, mock_ytdl, mock_get_model
+    mock_mkdtemp, mock_path_class, mock_ytdl, mock_get_model
 ):
     """Test that temporary files are cleaned up even when transcription fails."""
     # Setup mocks
-    mock_temp = MagicMock()
-    mock_temp.name = "/tmp/audio_test.m4a"
-    mock_tempfile.return_value.__enter__.return_value = mock_temp
+    mock_temp_dir = "/tmp/temp_audio_dir_12345"
+    mock_mkdtemp.return_value = mock_temp_dir
 
     mock_path = MagicMock()
     mock_path.exists.return_value = True
     mock_path.stat.return_value.st_size = 5 * 1024 * 1024
+    mock_path.parent = MagicMock()
+    mock_path.parent.exists.return_value = True
     mock_path_class.return_value = mock_path
 
     mock_model = MagicMock()
@@ -208,6 +244,7 @@ def test_whisper_cleanup_on_error(
 
     mock_ydl_instance = MagicMock()
     mock_ytdl.return_value.__enter__.return_value = mock_ydl_instance
+    mock_ydl_instance.extract_info.return_value = {"id": "dQw4w9WgXcQ"}
 
     # Execute and expect failure
     with pytest.raises(RuntimeError, match="Whisper transcription failed"):
@@ -216,8 +253,9 @@ def test_whisper_cleanup_on_error(
             "dQw4w9WgXcQ"
         )
 
-    # Verify cleanup was attempted
+    # Verify cleanup was attempted (both file and directory)
     mock_path.unlink.assert_called_once()
+    mock_path.parent.rmdir.assert_called_once()
 
 
 # =============================================================================
