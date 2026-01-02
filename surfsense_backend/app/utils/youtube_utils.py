@@ -130,7 +130,8 @@ def get_youtube_transcript_with_proxy(video_id: str) -> list[dict]:
                 os.environ["HTTP_PROXY"] = proxy_url
                 os.environ["HTTPS_PROXY"] = proxy_url
 
-                transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+                ytt_api = YouTubeTranscriptApi()
+                transcript_list = ytt_api.fetch(video_id)
             finally:
                 # Restore original proxy settings
                 if original_http_proxy:
@@ -145,10 +146,20 @@ def get_youtube_transcript_with_proxy(video_id: str) -> list[dict]:
         else:
             # No proxy, direct connection
             logger.debug("Fetching transcript without proxy")
-            transcript_list = YouTubeTranscriptApi.get_transcript(video_id)
+            ytt_api = YouTubeTranscriptApi()
+            transcript_list = ytt_api.fetch(video_id)
 
-        logger.info(f"Successfully fetched {len(transcript_list)} transcript segments via YouTube API")
-        return transcript_list
+        # Convert transcript objects to dict format
+        transcript_segments = []
+        for line in transcript_list:
+            transcript_segments.append({
+                "text": line.text,
+                "start": line.start,
+                "duration": line.duration,
+            })
+
+        logger.info(f"Successfully fetched {len(transcript_segments)} transcript segments via YouTube API")
+        return transcript_segments
 
     except TranscriptsDisabled as e:
         logger.warning(f"Transcripts are disabled for video {video_id}: {e}")
@@ -210,20 +221,23 @@ def get_youtube_transcript_with_whisper(video_url: str, video_id: str) -> list[d
     audio_file = None
     try:
         # Step 1: Download audio using yt-dlp
-        with tempfile.NamedTemporaryFile(suffix=".m4a", delete=False) as tmp_audio:
-            audio_file = tmp_audio.name
+        # Create temp directory for download
+        temp_dir = Path(tempfile.mkdtemp())
+        audio_file = temp_dir / "audio.m4a"
 
         logger.debug(f"Downloading audio to {audio_file}")
 
         ydl_opts = {
             'format': 'bestaudio[ext=m4a]/bestaudio/best',
-            'outtmpl': audio_file,
-            'quiet': True,
-            'no_warnings': True,
+            'outtmpl': str(audio_file),
+            'quiet': False,  # Show output for debugging
+            'no_warnings': False,
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            ydl.download([video_url])
+            info = ydl.extract_info(video_url, download=True)
+            if not info:
+                raise RuntimeError(f"Failed to extract video information for {video_id}")
 
         # Check if file exists and has content
         audio_path = Path(audio_file)
@@ -259,15 +273,23 @@ def get_youtube_transcript_with_whisper(video_url: str, video_id: str) -> list[d
         raise RuntimeError(f"Whisper transcription failed: {e}") from e
 
     finally:
-        # Step 5: Clean up temporary audio file
+        # Step 5: Clean up temporary audio file and directory
         if audio_file:
             try:
                 audio_path = Path(audio_file)
+                temp_dir = audio_path.parent
+
+                # Delete audio file
                 if audio_path.exists():
                     audio_path.unlink()
                     logger.debug(f"Cleaned up temporary audio file: {audio_file}")
+
+                # Delete temp directory
+                if temp_dir.exists():
+                    temp_dir.rmdir()
+                    logger.debug(f"Cleaned up temporary directory: {temp_dir}")
             except Exception as cleanup_error:
-                logger.warning(f"Failed to clean up audio file {audio_file}: {cleanup_error}")
+                logger.warning(f"Failed to clean up audio file/directory: {cleanup_error}")
 
 
 def get_youtube_transcript(video_url: str, video_id: str) -> tuple[list[dict], str]:
