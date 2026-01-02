@@ -31,7 +31,7 @@ logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler('surfsense_backend/debug_output/crawler_debug.log')
+        logging.FileHandler('debug_output/crawler_debug.log')
     ]
 )
 
@@ -57,7 +57,7 @@ class AlJazeeraCrawlerDiagnostic:
         """
         self.url = url
         self.headless = headless
-        self.output_dir = Path("surfsense_backend/debug_output")
+        self.output_dir = Path("debug_output")
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Results storage
