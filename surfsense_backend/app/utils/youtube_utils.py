@@ -123,7 +123,6 @@ def get_youtube_transcript_with_proxy(video_id: str) -> list[dict]:
             # Note: youtube-transcript-api doesn't directly expose proxy parameter
             # We need to monkey-patch the session or use environment variables
             # For now, we'll use the standard API and let OS environment handle proxy
-            import os
             original_http_proxy = os.environ.get("HTTP_PROXY")
             original_https_proxy = os.environ.get("HTTPS_PROXY")
 
@@ -217,16 +216,10 @@ def get_youtube_transcript_with_whisper(video_url: str, video_id: str) -> list[d
         logger.debug(f"Downloading audio to {audio_file}")
 
         ydl_opts = {
-            'format': 'bestaudio/best',
+            'format': 'bestaudio[ext=m4a]/bestaudio/best',
             'outtmpl': audio_file,
             'quiet': True,
             'no_warnings': True,
-            'extractaudio': True,
-            'audioformat': 'm4a',
-            'postprocessors': [{
-                'key': 'FFmpegExtractAudio',
-                'preferredcodec': 'm4a',
-            }],
         }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
