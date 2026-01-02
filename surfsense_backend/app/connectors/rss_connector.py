@@ -19,9 +19,10 @@ from urllib.parse import unquote, urlparse
 
 import feedparser
 import httpx
+from fastapi import HTTPException
 from markdownify import markdownify as md
 
-from app.utils.url_validator import format_ip_for_url, validate_url_safe_for_ssrf
+from app.utils.url_validator import format_ip_for_url, validate_url_safe_for_ssrf, is_ip_blocked
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,106 @@ class RSSConnector:
         """
         self.feed_urls = feed_urls
         self.timeout = timeout
+        self.max_redirects = 5  # Limit redirect chains
+
+    async def _validate_redirect_url(self, url: str) -> None:
+        """
+        Validate a redirect URL to prevent SSRF attacks.
+
+        Args:
+            url: The redirect URL to validate
+
+        Raises:
+            HTTPException: If URL is unsafe (private IP, metadata endpoint, etc.)
+        """
+        try:
+            parsed = urlparse(url)
+
+            # Validate scheme
+            if parsed.scheme not in ("http", "https"):
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Redirect to non-HTTP(S) scheme blocked: {parsed.scheme}"
+                )
+
+            # Check if hostname is a blocked IP
+            if parsed.hostname:
+                # Try to parse as IP address
+                try:
+                    import ipaddress
+                    ip = ipaddress.ip_address(parsed.hostname)
+                    if is_ip_blocked(parsed.hostname):
+                        raise HTTPException(
+                            status_code=400,
+                            detail=f"Redirect to private/blocked IP address blocked: {parsed.hostname}"
+                        )
+                except ValueError:
+                    # Not an IP address, it's a hostname - resolve and check
+                    # For security, we validate the redirect URL using the same validator
+                    await validate_url_safe_for_ssrf(url, allow_private=False)
+
+            logger.debug(f"Redirect URL validated: {url}")
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error validating redirect URL {url}: {e}")
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid redirect URL: {url}"
+            ) from e
+
+    async def _safe_get_with_redirects(
+        self, client: httpx.AsyncClient, url: str, headers: dict
+    ) -> httpx.Response:
+        """
+        Safely follow redirects with SSRF validation on each redirect.
+
+        Args:
+            client: httpx AsyncClient instance
+            url: Initial URL to fetch
+            headers: Request headers
+
+        Returns:
+            Final HTTP response after following safe redirects
+
+        Raises:
+            HTTPException: If any redirect URL is unsafe or max redirects exceeded
+        """
+        current_url = url
+        redirect_count = 0
+
+        while redirect_count < self.max_redirects:
+            response = await client.get(current_url, headers=headers, follow_redirects=False)
+
+            # If not a redirect, return the response
+            if response.status_code not in (301, 302, 303, 307, 308):
+                return response
+
+            # Extract redirect location
+            location = response.headers.get("location")
+            if not location:
+                raise HTTPException(
+                    status_code=500,
+                    detail="Server returned redirect without Location header"
+                )
+
+            # Resolve relative URLs
+            from urllib.parse import urljoin
+            redirect_url = urljoin(str(response.url), location)
+
+            # Validate the redirect URL for SSRF
+            logger.info(f"Validating redirect from {current_url} to {redirect_url}")
+            await self._validate_redirect_url(redirect_url)
+
+            current_url = redirect_url
+            redirect_count += 1
+
+        # Max redirects exceeded
+        raise HTTPException(
+            status_code=400,
+            detail=f"Too many redirects (max {self.max_redirects})"
+        )
 
     @staticmethod
     def parse_opml(opml_content: str) -> list[dict[str, str]]:
@@ -135,10 +236,11 @@ class RSSConnector:
                 headers = {"User-Agent": "SurfSense RSS Reader/1.0"}
 
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(
+                # Use safe redirect handling to validate each redirect URL
+                response = await self._safe_get_with_redirects(
+                    client,
                     target_url,
-                    headers=headers,
-                    follow_redirects=True,
+                    headers,
                 )
                 response.raise_for_status()
 
@@ -222,10 +324,11 @@ class RSSConnector:
                 headers = {"User-Agent": "SurfSense RSS Reader/1.0"}
 
             async with httpx.AsyncClient(timeout=self.timeout) as client:
-                response = await client.get(
+                # Use safe redirect handling to validate each redirect URL
+                response = await self._safe_get_with_redirects(
+                    client,
                     target_url,
-                    headers=headers,
-                    follow_redirects=True,
+                    headers,
                 )
                 response.raise_for_status()
 

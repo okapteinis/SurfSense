@@ -1,40 +1,150 @@
 #!/bin/bash
-# Pre-commit hook to prevent committing sensitive files
+# Pre-commit hook to prevent committing sensitive files and secrets
+# Consolidates .githooks and .git-hooks functionality
+
+set -e
 
 # Colors
 RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
-# Check for common sensitive files
-sensitive_files=(
-    ".env"
-    ".env.local"
-    ".env.production"
-    "*.pem"
-    "*.key"
-    "id_rsa"
-    "id_ed25519"
-    "*.secret"
+echo -e "${YELLOW}🔐 Running pre-commit security checks...${NC}"
+
+# ==============================================================================
+# CHECK 1: Sensitive File Patterns (with proper regex)
+# ==============================================================================
+
+# IMPORTANT: These are REGEX patterns for grep, not shell globs!
+# Use proper regex anchors and escapes
+sensitive_file_patterns=(
+    "\.env$"                    # .env files (but not .env.example)
+    "\.env\.local$"             # .env.local
+    "\.env\.production$"        # .env.production
+    "\.pem$"                    # SSL certificates
+    "\.key$"                    # Private keys
+    "^id_rsa$"                  # SSH private key
+    "^id_ed25519$"              # SSH ed25519 private key
+    "^id_dsa$"                  # SSH DSA private key
+    "\.secret$"                 # Secret files
+    "\.p12$"                    # PKCS12 certificates
+    "\.pfx$"                    # PFX certificates
+    "credentials\.json$"        # Credentials files
+    "\.kube/config$"            # Kubernetes config
+    "aws/credentials$"          # AWS credentials
 )
 
-# Check staged files (exclude .example files which are templates)
-for pattern in "${sensitive_files[@]}"; do
-    if git diff --cached --name-only | grep -v "\.example$" | grep -q "$pattern"; then
-        echo -e "${RED}ERROR: Attempting to commit sensitive file matching '$pattern'${NC}"
-        echo "Please remove this file from staging:"
-        git diff --cached --name-only | grep -v "\.example$" | grep "$pattern" | while read -r file; do
-            echo "  git reset HEAD $file"
+FOUND_SENSITIVE=0
+
+for pattern in "${sensitive_file_patterns[@]}"; do
+    # Get staged files, exclude .example files, and check against regex pattern
+    matched_files=$(git diff --cached --name-only --diff-filter=ACM | \
+                    grep -v "\.example$" | \
+                    grep -E "$pattern" || true)
+
+    if [ -n "$matched_files" ]; then
+        echo -e "${RED}❌ ERROR: Attempting to commit sensitive file matching pattern: $pattern${NC}"
+        echo "$matched_files" | while read -r file; do
+            echo -e "${RED}   - $file${NC}"
+            echo "      Remove with: git reset HEAD $file"
         done
-        exit 1
+        FOUND_SENSITIVE=1
     fi
 done
 
-# Check for hardcoded secrets in code
-if git diff --cached | grep -iE "(api[_-]?key|secret[_-]?key|password|bearer|token)[\"']?\s*[:=]\s*[\"'][^\"']{20,}"; then
-    echo -e "${RED}ERROR: Possible hardcoded secret detected in staged changes${NC}"
-    echo "Review your changes and use environment variables instead."
+# ==============================================================================
+# CHECK 2: Forbidden Plaintext Files (SOPS encryption check)
+# ==============================================================================
+
+FORBIDDEN_PLAINTEXT=(
+    "surfsense_backend/secrets.yaml"
+    "surfsense_backend/.env"
+    "surfsense_backend/config/global_llm_config.yaml"
+    ".config/sops/age/keys.txt"
+    "surfsense_backend/keys.txt"
+)
+
+for file in "${FORBIDDEN_PLAINTEXT[@]}"; do
+    if git diff --cached --name-only --diff-filter=ACM | grep -qE "^${file}$"; then
+        echo -e "${RED}❌ ERROR: Attempting to commit forbidden plaintext file: $file${NC}"
+        echo "      This file should NOT be committed (use encrypted version or .env.example)"
+        echo "      Remove with: git reset HEAD $file"
+        FOUND_SENSITIVE=1
+    fi
+done
+
+# ==============================================================================
+# CHECK 3: SOPS Encryption Verification
+# ==============================================================================
+
+if git diff --cached --name-only --diff-filter=ACM | grep -qE "secrets\.enc\.(yaml|yml|json)$"; then
+    secrets_file="surfsense_backend/secrets.enc.yaml"
+    if [ -f "$secrets_file" ]; then
+        # Check if file is actually encrypted (must contain SOPS metadata)
+        if ! grep -q "sops:" "$secrets_file" || ! grep -q "mac:" "$secrets_file"; then
+            echo -e "${RED}❌ ERROR: $secrets_file is staged but not properly encrypted!${NC}"
+            echo "      File must be encrypted with SOPS before committing"
+            echo "      Encrypt with: sops -e -i $secrets_file"
+            FOUND_SENSITIVE=1
+        else
+            echo -e "${GREEN}✓ $secrets_file is properly encrypted${NC}"
+        fi
+    fi
+fi
+
+# ==============================================================================
+# CHECK 4: Hardcoded Secrets in Code
+# ==============================================================================
+
+# Check staged changes for hardcoded secrets
+# Patterns to detect common secret formats:
+# - api_key = "..." or apiKey: "..."
+# - password = "..." or password: "..."
+# - token = "..." or bearer: "..."
+# - AWS keys (AKIA...)
+# - Private keys (-----BEGIN)
+
+# Note: We look for values longer than 20 characters to reduce false positives
+if git diff --cached | grep -iE "(api[_-]?key|secret[_-]?key|password|bearer|token)[\"']?\s*[:=]\s*[\"'][^\"']{20,}[\"']"; then
+    echo -e "${RED}❌ ERROR: Possible hardcoded secret detected in staged changes${NC}"
+    echo "      Review your changes and use environment variables or SOPS instead"
+    echo "      Example: Use process.env.API_KEY or load from secrets.enc.yaml"
+    FOUND_SENSITIVE=1
+fi
+
+# Check for AWS access keys (AKIA...)
+if git diff --cached | grep -E "AKIA[0-9A-Z]{16}"; then
+    echo -e "${RED}❌ ERROR: AWS access key detected in staged changes${NC}"
+    echo "      Remove the AWS credentials and use environment variables"
+    FOUND_SENSITIVE=1
+fi
+
+# Check for private key headers
+# Exclude lines that are comments or strings in code (like this hook itself)
+if git diff --cached | grep "BEGIN.*PRIVATE KEY" | grep -v "^+.*#" | grep -v "^+.*grep" | grep -q "."; then
+    echo -e "${RED}❌ ERROR: Private key detected in staged changes${NC}"
+    echo "      Never commit private keys to version control"
+    FOUND_SENSITIVE=1
+fi
+
+# Check for GitHub personal access tokens (ghp_...)
+if git diff --cached | grep -E "ghp_[a-zA-Z0-9]{36}"; then
+    echo -e "${RED}❌ ERROR: GitHub personal access token detected in staged changes${NC}"
+    echo "      Remove the token and use environment variables"
+    FOUND_SENSITIVE=1
+fi
+
+# ==============================================================================
+# Final Result
+# ==============================================================================
+
+if [ "$FOUND_SENSITIVE" -eq 1 ]; then
+    echo ""
+    echo -e "${RED}❌ COMMIT BLOCKED: Security issues detected!${NC}"
+    echo -e "${YELLOW}Fix the issues above and try again.${NC}"
     exit 1
 fi
 
-echo "✓ Pre-commit checks passed"
+echo -e "${GREEN}✅ All pre-commit security checks passed!${NC}"
 exit 0
