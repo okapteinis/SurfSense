@@ -86,7 +86,7 @@ def get_youtube_transcript_with_proxy(video_id: str) -> list[dict]:
     This function includes:
     - Rate limiting (configurable via YOUTUBE_RATE_LIMIT env var)
     - Exponential backoff retry (3 attempts with 2-10s delays)
-    - Optional proxy support (via YOUTUBE_PROXY_URL env var)
+    - Optional proxy support (via YOUTUBE_PROXY_URL env var) - thread-safe
 
     Args:
         video_id: YouTube video ID (e.g., "dQw4w9WgXcQ")
@@ -112,42 +112,18 @@ def get_youtube_transcript_with_proxy(video_id: str) -> list[dict]:
     proxy_url = os.getenv("YOUTUBE_PROXY_URL")
 
     try:
+        # Prepare proxies dict (thread-safe - no os.environ modification)
+        proxies = None
         if proxy_enabled and proxy_url:
             logger.debug(f"Using proxy: {proxy_url}")
-            # youtube-transcript-api uses requests internally, so we set up proxies dict
             proxies = {
                 "http": proxy_url,
                 "https": proxy_url,
             }
 
-            # Note: youtube-transcript-api doesn't directly expose proxy parameter
-            # We need to monkey-patch the session or use environment variables
-            # For now, we'll use the standard API and let OS environment handle proxy
-            original_http_proxy = os.environ.get("HTTP_PROXY")
-            original_https_proxy = os.environ.get("HTTPS_PROXY")
-
-            try:
-                os.environ["HTTP_PROXY"] = proxy_url
-                os.environ["HTTPS_PROXY"] = proxy_url
-
-                ytt_api = YouTubeTranscriptApi()
-                transcript_list = ytt_api.fetch(video_id)
-            finally:
-                # Restore original proxy settings
-                if original_http_proxy:
-                    os.environ["HTTP_PROXY"] = original_http_proxy
-                else:
-                    os.environ.pop("HTTP_PROXY", None)
-
-                if original_https_proxy:
-                    os.environ["HTTPS_PROXY"] = original_https_proxy
-                else:
-                    os.environ.pop("HTTPS_PROXY", None)
-        else:
-            # No proxy, direct connection
-            logger.debug("Fetching transcript without proxy")
-            ytt_api = YouTubeTranscriptApi()
-            transcript_list = ytt_api.fetch(video_id)
+        # Use YouTubeTranscriptApi with proxies parameter (thread-safe)
+        ytt_api = YouTubeTranscriptApi()
+        transcript_list = ytt_api.fetch(video_id, proxies=proxies)
 
         # Convert transcript objects to dict format
         transcript_segments = []
@@ -263,8 +239,13 @@ def get_youtube_transcript_with_whisper(video_url: str, video_id: str) -> list[d
                 "duration": segment["end"] - segment["start"],
             })
 
-        logger.info(f"Whisper transcription complete: {len(segments)} segments, "
-                   f"total duration {result['segments'][-1]['end']:.1f}s")
+        # Log results with safe access to last segment
+        if result["segments"]:
+            total_duration = result["segments"][-1]["end"]
+            logger.info(f"Whisper transcription complete: {len(segments)} segments, "
+                       f"total duration {total_duration:.1f}s")
+        else:
+            logger.info(f"Whisper transcription complete: 0 segments (silent video or no speech detected)")
 
         return segments
 
