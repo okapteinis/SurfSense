@@ -1,0 +1,36 @@
+{
+  "summary": {
+    "test_date": "2026-01-03T01:13:10.186321",
+    "mode": "quick",
+    "total_tests": 2,
+    "success_count": 1,
+    "partial_count": 0,
+    "failed_count": 1,
+    "actual_successes": 1,
+    "expected_failures": 0,
+    "success_rate": "50.0%",
+    "avg_extraction_time": "3.59s",
+    "total_time": "10.18s"
+  },
+  "results": [
+    {
+      "video_id": "dQw4w9WgXcQ",
+      "title": "Rick Astley - Never Gonna Give You Up (Official Video)",
+      "status": "SUCCESS",
+      "segment_count": 61,
+      "total_duration": 211.32,
+      "expected_duration": 213,
+      "text_length": 2089,
+      "extraction_time": 0.830270528793335,
+      "first_segment_text": "[\u266a\u266a\u266a]",
+      "last_segment_text": "\u266a Never gonna tell a lie\nand hurt you \u266a"
+    },
+    {
+      "video_id": "9bZkp7q19f0",
+      "title": "PSY - GANGNAM STYLE(\uac15\ub0a8\uc2a4\ud0c0\uc77c) M/V",
+      "status": "FAILED",
+      "error": "RetryError: RetryError[<Future at 0x7fbabb64e360 state=finished raised RequestBlocked>]",
+      "extraction_time": 6.347687482833862
+    }
+  ]
+}
