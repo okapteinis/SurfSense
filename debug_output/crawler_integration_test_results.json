@@ -1,0 +1,187 @@
+{
+  "summary": {
+    "test_date": "2026-01-03T01:02:56.362424",
+    "mode": "full",
+    "total_tests": 5,
+    "success_count": 3,
+    "partial_count": 2,
+    "failed_count": 0,
+    "success_rate": "60.0%",
+    "avg_extraction_time": "4.09s",
+    "total_time": "32.45s",
+    "strategies_used": {
+      "main_tag": 3,
+      "article_tag": 2
+    }
+  },
+  "results": [
+    {
+      "url": "https://www.aljazeera.com/economy/2025/12/31/us-jobless-claims-slow-in-last-full-week-of-2025-amid-weak-labour-market",
+      "category": "Economy",
+      "type": "Short News",
+      "status": "SUCCESS",
+      "headline": "US jobless claims slow in last full week of 2025 amid weak labour market",
+      "extraction_strategy": "main_tag",
+      "paragraph_count": 17,
+      "expected_paragraphs": 15,
+      "content_length": 2530,
+      "keywords_found": [
+        "jobless",
+        "claims",
+        "unemployment"
+      ],
+      "expected_keywords": [
+        "jobless",
+        "claims",
+        "unemployment"
+      ],
+      "quality_checks": {
+        "has_headline": true,
+        "has_body": true,
+        "min_paragraphs": true,
+        "keywords_found": true,
+        "has_metadata": true,
+        "has_strategy": true
+      },
+      "metadata": {
+        "author": "By\nNews Agencies",
+        "title": "US jobless claims slow in last full week of 2025 amid weak labour market",
+        "source": "https://www.aljazeera.com/economy/2025/12/31/us-jobless-claims-slow-in-last-full-week-of-2025-amid-weak-labour-market"
+      },
+      "extraction_time": 4.227373123168945
+    },
+    {
+      "url": "https://www.aljazeera.com/economy/2024/12/23/from-trump-to-bitcoin-inflation-and-china-the-big-economic-trends-of-2024",
+      "category": "Economy/Politics",
+      "type": "Long Analysis",
+      "status": "SUCCESS",
+      "headline": "From Trump to Bitcoin, inflation and China: the big economic trends of 2024",
+      "extraction_strategy": "main_tag",
+      "paragraph_count": 54,
+      "expected_paragraphs": 52,
+      "content_length": 9423,
+      "keywords_found": [
+        "trump",
+        "bitcoin",
+        "inflation",
+        "china"
+      ],
+      "expected_keywords": [
+        "trump",
+        "bitcoin",
+        "inflation",
+        "china"
+      ],
+      "quality_checks": {
+        "has_headline": true,
+        "has_body": true,
+        "min_paragraphs": true,
+        "keywords_found": true,
+        "has_metadata": true,
+        "has_strategy": true
+      },
+      "metadata": {
+        "author": "By\nErin Hale",
+        "title": "From Trump to Bitcoin, inflation and China: the big economic trends of 2024",
+        "source": "https://www.aljazeera.com/economy/2024/12/23/from-trump-to-bitcoin-inflation-and-china-the-big-economic-trends-of-2024"
+      },
+      "extraction_time": 4.621464490890503
+    },
+    {
+      "url": "https://www.aljazeera.com/news/2025/12/30/trump-bombs-venezuelan-land-for-first-time-is-war-imminent",
+      "category": "News/Politics",
+      "type": "Long News",
+      "status": "SUCCESS",
+      "headline": "Trump bombs Venezuelan land for first time: Is war imminent?",
+      "extraction_strategy": "main_tag",
+      "paragraph_count": 50,
+      "expected_paragraphs": 48,
+      "content_length": 10094,
+      "keywords_found": [
+        "trump",
+        "venezuela",
+        "war"
+      ],
+      "expected_keywords": [
+        "trump",
+        "venezuela",
+        "war"
+      ],
+      "quality_checks": {
+        "has_headline": true,
+        "has_body": true,
+        "min_paragraphs": true,
+        "keywords_found": true,
+        "has_metadata": true,
+        "has_strategy": true
+      },
+      "metadata": {
+        "author": "By\nUsaid Siddiqui",
+        "title": "Trump bombs Venezuelan land for first time: Is war imminent?",
+        "source": "https://www.aljazeera.com/news/2025/12/30/trump-bombs-venezuelan-land-for-first-time-is-war-imminent"
+      },
+      "extraction_time": 4.365267515182495
+    },
+    {
+      "url": "https://www.aljazeera.com/features/2025/12/28/gaza-children-struggle-for-survival-amid-israels-starvation-campaign",
+      "category": "Features",
+      "type": "Long-form Feature",
+      "status": "PARTIAL",
+      "headline": "Page not found",
+      "extraction_strategy": "article_tag",
+      "paragraph_count": 1,
+      "expected_paragraphs": 30,
+      "content_length": 112,
+      "keywords_found": [],
+      "expected_keywords": [
+        "gaza",
+        "children",
+        "israel"
+      ],
+      "quality_checks": {
+        "has_headline": true,
+        "has_body": true,
+        "min_paragraphs": false,
+        "keywords_found": false,
+        "has_metadata": true,
+        "has_strategy": true
+      },
+      "metadata": {
+        "author": null,
+        "title": "Page not found",
+        "source": "https://www.aljazeera.com/features/2025/12/28/gaza-children-struggle-for-survival-amid-israels-starvation-campaign"
+      },
+      "extraction_time": 3.798842191696167
+    },
+    {
+      "url": "https://www.aljazeera.com/opinions/2025/12/27/what-does-trump-20-hold-for-latin-america",
+      "category": "Opinion",
+      "type": "Opinion Piece",
+      "status": "PARTIAL",
+      "headline": "Page not found",
+      "extraction_strategy": "article_tag",
+      "paragraph_count": 1,
+      "expected_paragraphs": 20,
+      "content_length": 112,
+      "keywords_found": [],
+      "expected_keywords": [
+        "trump",
+        "latin america"
+      ],
+      "quality_checks": {
+        "has_headline": true,
+        "has_body": true,
+        "min_paragraphs": false,
+        "keywords_found": false,
+        "has_metadata": true,
+        "has_strategy": true
+      },
+      "metadata": {
+        "author": null,
+        "title": "Page not found",
+        "source": "https://www.aljazeera.com/opinions/2025/12/27/what-does-trump-20-hold-for-latin-america"
+      },
+      "extraction_time": 3.4176928997039795
+    }
+  ]
+}
