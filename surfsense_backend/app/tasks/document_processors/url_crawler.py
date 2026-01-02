@@ -9,6 +9,7 @@ import validators
 from firecrawl import AsyncFirecrawlApp
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_core.documents import Document as LangchainDocument
+from playwright.async_api import async_playwright, Page, TimeoutError as PlaywrightTimeoutError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,6 +28,275 @@ from .base import (
     check_document_by_unique_identifier,
     md,
 )
+
+logger = logging.getLogger(__name__)
+
+
+async def _try_article_tag(page: Page) -> tuple[str | None, str | None]:
+    """
+    Strategy 1: Extract content from semantic <article> tag.
+
+    Args:
+        page: Playwright page object
+
+    Returns:
+        Tuple of (headline, body_text) or (None, None) if not found
+    """
+    try:
+        article = await page.query_selector("article")
+        if not article:
+            logger.debug("No <article> tag found")
+            return None, None
+
+        # Try to find headline within article
+        headline_elem = await article.query_selector("h1")
+        if not headline_elem:
+            # Try page-level h1 if not in article
+            headline_elem = await page.query_selector("h1")
+
+        headline = await headline_elem.inner_text() if headline_elem else None
+
+        # Extract all paragraphs within article
+        paragraphs = await article.query_selector_all("p")
+        if not paragraphs:
+            logger.debug("No paragraphs found in <article> tag")
+            return None, None
+
+        body_parts = []
+        for p in paragraphs:
+            text = await p.inner_text()
+            if text and text.strip():
+                body_parts.append(text.strip())
+
+        body = "\n\n".join(body_parts) if body_parts else None
+
+        if body and len(body) > 100:  # Minimum content threshold
+            logger.info(f"✅ Article tag extraction: {len(paragraphs)} paragraphs, {len(body)} chars")
+            return headline, body
+
+        return None, None
+    except Exception as e:
+        logger.debug(f"Article tag extraction failed: {e}")
+        return None, None
+
+
+async def _try_main_tag(page: Page) -> tuple[str | None, str | None]:
+    """
+    Strategy 2: Extract content from semantic <main> tag.
+
+    Args:
+        page: Playwright page object
+
+    Returns:
+        Tuple of (headline, body_text) or (None, None) if not found
+    """
+    try:
+        main = await page.query_selector("main")
+        if not main:
+            logger.debug("No <main> tag found")
+            return None, None
+
+        # Try to find headline
+        headline_elem = await main.query_selector("h1")
+        if not headline_elem:
+            headline_elem = await page.query_selector("h1")
+
+        headline = await headline_elem.inner_text() if headline_elem else None
+
+        # Extract all paragraphs within main
+        paragraphs = await main.query_selector_all("p")
+        if not paragraphs:
+            logger.debug("No paragraphs found in <main> tag")
+            return None, None
+
+        body_parts = []
+        for p in paragraphs:
+            text = await p.inner_text()
+            if text and text.strip():
+                body_parts.append(text.strip())
+
+        body = "\n\n".join(body_parts) if body_parts else None
+
+        if body and len(body) > 100:  # Minimum content threshold
+            logger.info(f"✅ Main tag extraction: {len(paragraphs)} paragraphs, {len(body)} chars")
+            return headline, body
+
+        return None, None
+    except Exception as e:
+        logger.debug(f"Main tag extraction failed: {e}")
+        return None, None
+
+
+async def _try_largest_block_heuristic(page: Page, min_paragraphs: int = 5) -> tuple[str | None, str | None]:
+    """
+    Strategy 3: Find the div with the most paragraph tags (heuristic for main content).
+
+    This content-agnostic approach works across different site layouts and is resilient
+    to HTML structure changes. It identifies the main article by finding the container
+    with the highest paragraph density.
+
+    Args:
+        page: Playwright page object
+        min_paragraphs: Minimum number of paragraphs required to consider a block valid
+
+    Returns:
+        Tuple of (headline, body_text) or (None, None) if not found
+    """
+    try:
+        # Get all divs on the page
+        divs = await page.query_selector_all("div")
+        if not divs:
+            logger.debug("No divs found on page")
+            return None, None
+
+        max_paragraphs = 0
+        best_div = None
+
+        # Find the div with the most paragraphs
+        for div in divs:
+            paragraphs = await div.query_selector_all("p")
+            paragraph_count = len(paragraphs)
+
+            if paragraph_count > max_paragraphs:
+                max_paragraphs = paragraph_count
+                best_div = div
+
+        # Check if we found a valid content block
+        if not best_div or max_paragraphs < min_paragraphs:
+            logger.debug(f"No suitable content block found (max paragraphs: {max_paragraphs}, required: {min_paragraphs})")
+            return None, None
+
+        # Extract headline (try to find h1 anywhere on the page)
+        headline_elem = await page.query_selector("h1")
+        headline = await headline_elem.inner_text() if headline_elem else None
+
+        # Extract body text from the best div
+        paragraphs = await best_div.query_selector_all("p")
+        body_parts = []
+        for p in paragraphs:
+            text = await p.inner_text()
+            if text and text.strip():
+                body_parts.append(text.strip())
+
+        body = "\n\n".join(body_parts) if body_parts else None
+
+        if body:
+            logger.info(f"✅ Largest block heuristic: {max_paragraphs} paragraphs, {len(body)} chars")
+            return headline, body
+
+        return None, None
+    except Exception as e:
+        logger.debug(f"Largest block heuristic failed: {e}")
+        return None, None
+
+
+async def _extract_article_with_playwright(url: str) -> tuple[str | None, str | None, dict]:
+    """
+    Extract article content using Playwright with multi-strategy fallback chain.
+
+    This function implements a robust extraction approach that tries multiple strategies
+    in order, falling back to a content-agnostic heuristic that works across different
+    site layouts. This is particularly effective for JavaScript-heavy sites like Al Jazeera.
+
+    Strategies tried in order:
+    1. Semantic <article> tag (for sites using proper HTML5 structure)
+    2. Semantic <main> tag (fallback for sites without article tags)
+    3. Largest text block heuristic (content-agnostic, works on any layout)
+
+    Args:
+        url: URL to extract content from
+
+    Returns:
+        Tuple of (headline, body_text, metadata_dict)
+    """
+    async with async_playwright() as p:
+        try:
+            logger.info(f"Starting Playwright extraction for: {url}")
+
+            # Launch browser
+            browser = await p.chromium.launch(headless=True)
+            page = await browser.new_page()
+
+            # Navigate with proper wait for JavaScript-heavy sites
+            logger.debug(f"Navigating to: {url}")
+            await page.goto(url, wait_until="networkidle", timeout=30000)
+
+            # Additional wait for JavaScript execution and content rendering
+            await page.wait_for_timeout(500)
+
+            # Wait for content to be visible
+            try:
+                await page.wait_for_selector("div p", timeout=5000, state="visible")
+            except PlaywrightTimeoutError:
+                logger.warning("Timeout waiting for content paragraphs, proceeding anyway")
+
+            logger.debug(f"Page loaded: {await page.title()}")
+            logger.debug(f"Final URL after redirects: {page.url}")
+
+            # Try extraction strategies in order
+            headline, body = None, None
+
+            # Strategy 1: <article> tag
+            logger.debug("Trying Strategy 1: <article> tag")
+            headline, body = await _try_article_tag(page)
+            if headline or body:
+                logger.info("SUCCESS: article tag strategy")
+                strategy = "article_tag"
+            else:
+                # Strategy 2: <main> tag
+                logger.debug("Trying Strategy 2: <main> tag")
+                headline, body = await _try_main_tag(page)
+                if headline or body:
+                    logger.info("SUCCESS: main tag strategy")
+                    strategy = "main_tag"
+                else:
+                    # Strategy 3: Largest block heuristic (ALWAYS TRIED)
+                    logger.debug("Trying Strategy 3: largest block heuristic")
+                    headline, body = await _try_largest_block_heuristic(page)
+                    if headline or body:
+                        logger.info("SUCCESS: largest block heuristic")
+                        strategy = "largest_block_heuristic"
+                    else:
+                        logger.error("FAILED: All extraction strategies failed")
+                        strategy = "none"
+
+            # Extract metadata
+            title = await page.title()
+            final_url = page.url
+
+            metadata = {
+                "title": headline or title,
+                "source": final_url,
+                "extraction_strategy": strategy,
+            }
+
+            # Try to extract author if available
+            try:
+                author_elem = await page.query_selector('[rel="author"], .author, .byline, [class*="author"]')
+                if author_elem:
+                    author_text = await author_elem.inner_text()
+                    if author_text:
+                        metadata["author"] = author_text.strip()
+            except Exception:
+                pass  # Author extraction is optional
+
+            await browser.close()
+
+            if headline or body:
+                logger.info(f"✅ Extraction successful using {strategy}")
+                logger.info(f"   Headline: {headline[:100] if headline else 'None'}...")
+                logger.info(f"   Body length: {len(body) if body else 0} characters")
+                return headline, body, metadata
+            else:
+                logger.error(f"❌ All extraction strategies failed for {url}")
+                return None, None, metadata
+
+        except PlaywrightTimeoutError as e:
+            logger.error(f"Playwright timeout for {url}: {e}")
+            return None, None, {"error": f"Timeout: {e!s}"}
+        except Exception as e:
+            logger.error(f"Playwright extraction error for {url}: {e}", exc_info=True)
+            return None, None, {"error": f"Extraction error: {e!s}"}
 
 
 async def add_crawled_url_document(
@@ -97,12 +367,6 @@ async def add_crawled_url_document(
 
         use_firecrawl = bool(config.FIRECRAWL_API_KEY)
 
-        if use_firecrawl:
-            # Use Firecrawl SDK directly
-            firecrawl_app = AsyncFirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
-        else:
-            crawl_loader = AsyncChromiumLoader(urls=[normalized_url], headless=True)
-
         # Perform crawling
         await task_logger.log_task_progress(
             log_entry,
@@ -111,12 +375,13 @@ async def add_crawled_url_document(
                 "stage": "crawling",
                 "crawler_type": "AsyncFirecrawlApp"
                 if use_firecrawl
-                else "AsyncChromiumLoader",
+                else "PlaywrightSmartExtractor",
             },
         )
 
         if use_firecrawl:
             # Use async Firecrawl SDK with v1 API - properly awaited
+            firecrawl_app = AsyncFirecrawlApp(api_key=config.FIRECRAWL_API_KEY)
             scrape_result = await firecrawl_app.scrape_url(
                 url=normalized_url, formats=["markdown"]
             )
@@ -153,9 +418,46 @@ async def add_crawled_url_document(
                 )
                 raise ValueError(f"Firecrawl failed to scrape URL: {error_msg}")
         else:
-            # Use AsyncChromiumLoader as fallback
-            url_crawled = await crawl_loader.aload()
-            content_in_markdown = md.transform_documents(url_crawled)[0].page_content
+            # Use Playwright with smart multi-strategy extraction
+            # This implements robust content extraction with fallback strategies
+            # See diagnostic analysis: docs/crawler_analysis_aljazeera.md
+            logger.info(f"Using Playwright smart extraction for: {normalized_url}")
+
+            headline, body, extraction_metadata = await _extract_article_with_playwright(normalized_url)
+
+            if not headline and not body:
+                raise ValueError(
+                    f"Failed to extract content from {normalized_url}. "
+                    f"All extraction strategies failed. "
+                    f"See logs for details."
+                )
+
+            # Format extracted content as markdown
+            markdown_parts = []
+            if headline:
+                markdown_parts.append(f"# {headline}\n")
+            if extraction_metadata.get("author"):
+                markdown_parts.append(f"**Author:** {extraction_metadata['author']}\n")
+            if body:
+                markdown_parts.append(f"\n{body}")
+
+            content_in_markdown = "\n".join(markdown_parts)
+
+            # Create LangChain Document format for compatibility
+            url_crawled = [
+                LangchainDocument(
+                    page_content=content_in_markdown,
+                    metadata={
+                        "source": extraction_metadata.get("source", normalized_url),
+                        "title": headline or extraction_metadata.get("title", url),
+                        "extraction_strategy": extraction_metadata.get("extraction_strategy", "unknown"),
+                        "author": extraction_metadata.get("author", ""),
+                    },
+                )
+            ]
+
+            logger.info(f"✅ Playwright extraction complete: {len(content_in_markdown)} chars")
+            logger.debug(f"Extraction strategy used: {extraction_metadata.get('extraction_strategy')}")
 
         # Format document
         await task_logger.log_task_progress(
