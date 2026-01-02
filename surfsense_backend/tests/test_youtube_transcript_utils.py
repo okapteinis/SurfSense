@@ -419,7 +419,7 @@ def test_whisper_model_not_available():
 
 def test_youtube_api_output_format():
     """Verify YouTube API output matches expected format."""
-    segment = MOCK_YOUTUBE_TRANSCRIPT[0]
+    segment = MOCK_YOUTUBE_TRANSCRIPT_DICTS[0]
     assert "text" in segment
     assert "start" in segment
     assert "duration" in segment

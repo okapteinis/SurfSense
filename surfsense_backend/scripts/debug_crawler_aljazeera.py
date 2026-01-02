@@ -66,7 +66,7 @@ class AlJazeeraCrawlerDiagnostic:
         """
         self.url = url
         self.headless = headless
-        self.output_dir = Path("debug_output")
+        self.output_dir = OUTPUT_DIR
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Results storage
