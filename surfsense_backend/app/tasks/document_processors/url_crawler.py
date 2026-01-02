@@ -9,7 +9,7 @@ import validators
 from firecrawl import AsyncFirecrawlApp
 from langchain_community.document_loaders import AsyncChromiumLoader
 from langchain_core.documents import Document as LangchainDocument
-from playwright.async_api import async_playwright, Page, TimeoutError as PlaywrightTimeoutError
+from playwright.async_api import async_playwright, Page, TimeoutError as PlaywrightTimeoutError, ElementHandle
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -36,7 +36,7 @@ MIN_CONTENT_LENGTH = 100  # Minimum character count for valid article body
 JS_RENDER_DELAY_MS = 500  # Delay for JavaScript rendering (milliseconds)
 
 
-async def _extract_paragraphs_from_element(element, strategy_name: str) -> str | None:
+async def _extract_paragraphs_from_element(element: ElementHandle, strategy_name: str) -> str | None:
     """
     Extract and join paragraph text from a page element.
 
@@ -55,11 +55,10 @@ async def _extract_paragraphs_from_element(element, strategy_name: str) -> str |
         logger.debug(f"No paragraphs found in {strategy_name}")
         return None
 
-    body_parts = []
-    for p in paragraphs:
-        text = await p.inner_text()
-        if text and text.strip():
-            body_parts.append(text.strip())
+    # Extract paragraph text concurrently for better performance
+    import asyncio
+    texts = await asyncio.gather(*[p.inner_text() for p in paragraphs])
+    body_parts = [text.strip() for text in texts if text and text.strip()]
 
     body = "\n\n".join(body_parts) if body_parts else None
 
@@ -204,6 +203,15 @@ async def _try_largest_block_heuristic(page: Page, min_paragraphs: int = 5) -> t
         return None, None
 
 
+# Extraction strategies configuration (module-level constant)
+# Strategies are tried in order until one succeeds
+EXTRACTION_STRATEGIES = [
+    ("article_tag", "<article> tag", _try_article_tag),
+    ("main_tag", "<main> tag", _try_main_tag),
+    ("largest_block_heuristic", "largest block heuristic", _try_largest_block_heuristic),
+]
+
+
 async def _extract_article_with_playwright(url: str) -> tuple[str | None, str | None, dict]:
     """
     Extract article content using Playwright with multi-strategy fallback chain.
@@ -252,16 +260,10 @@ async def _extract_article_with_playwright(url: str) -> tuple[str | None, str | 
             logger.debug(f"Final URL after redirects: {page.url}")
 
             # Try extraction strategies in order until one succeeds
-            strategies = [
-                ("article_tag", "<article> tag", _try_article_tag),
-                ("main_tag", "<main> tag", _try_main_tag),
-                ("largest_block_heuristic", "largest block heuristic", _try_largest_block_heuristic),
-            ]
-
             headline, body = None, None
             strategy = "none"
 
-            for strategy_id, strategy_name, strategy_func in strategies:
+            for strategy_id, strategy_name, strategy_func in EXTRACTION_STRATEGIES:
                 logger.debug(f"Trying Strategy: {strategy_name}")
                 headline, body = await strategy_func(page)
                 if headline or body:

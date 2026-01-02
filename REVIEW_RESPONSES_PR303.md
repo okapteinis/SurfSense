@@ -47,7 +47,7 @@ async def run_diagnostic(self) -> dict:
 ```
 
 **Why This Matters:**
-- **Before:** If exception occurred in `page.goto()`, content extraction, or any operation before line 518, browser remained open
+- **Before:** If exception occurred in `page.goto()`, content extraction, or any operation before the cleanup code, browser remained open
 - **After:** Browser is **guaranteed** to close via finally block
 - **Impact:** Prevents zombie browser processes in production, especially during failures or timeouts
 
