@@ -31,6 +31,44 @@ from .base import (
 
 logger = logging.getLogger(__name__)
 
+# Content extraction thresholds
+MIN_CONTENT_LENGTH = 100  # Minimum character count for valid article body
+JS_RENDER_DELAY_MS = 500  # Delay for JavaScript rendering (milliseconds)
+
+
+async def _extract_paragraphs_from_element(element, strategy_name: str) -> str | None:
+    """
+    Extract and join paragraph text from a page element.
+
+    This helper function centralizes the duplicated logic for extracting
+    paragraphs from different page elements (<article>, <main>, etc.).
+
+    Args:
+        element: Playwright element handle (article, main, or other container)
+        strategy_name: Name of extraction strategy (for logging)
+
+    Returns:
+        Joined paragraph text or None if insufficient content
+    """
+    paragraphs = await element.query_selector_all("p")
+    if not paragraphs:
+        logger.debug(f"No paragraphs found in {strategy_name}")
+        return None
+
+    body_parts = []
+    for p in paragraphs:
+        text = await p.inner_text()
+        if text and text.strip():
+            body_parts.append(text.strip())
+
+    body = "\n\n".join(body_parts) if body_parts else None
+
+    if body and len(body) > MIN_CONTENT_LENGTH:
+        logger.info(f"✅ {strategy_name} extraction: {len(paragraphs)} paragraphs, {len(body)} chars")
+        return body
+
+    return None
+
 
 async def _try_article_tag(page: Page) -> tuple[str | None, str | None]:
     """
@@ -56,22 +94,10 @@ async def _try_article_tag(page: Page) -> tuple[str | None, str | None]:
 
         headline = await headline_elem.inner_text() if headline_elem else None
 
-        # Extract all paragraphs within article
-        paragraphs = await article.query_selector_all("p")
-        if not paragraphs:
-            logger.debug("No paragraphs found in <article> tag")
-            return None, None
+        # Use helper function to extract paragraphs
+        body = await _extract_paragraphs_from_element(article, "Article tag")
 
-        body_parts = []
-        for p in paragraphs:
-            text = await p.inner_text()
-            if text and text.strip():
-                body_parts.append(text.strip())
-
-        body = "\n\n".join(body_parts) if body_parts else None
-
-        if body and len(body) > 100:  # Minimum content threshold
-            logger.info(f"✅ Article tag extraction: {len(paragraphs)} paragraphs, {len(body)} chars")
+        if body:
             return headline, body
 
         return None, None
@@ -103,22 +129,10 @@ async def _try_main_tag(page: Page) -> tuple[str | None, str | None]:
 
         headline = await headline_elem.inner_text() if headline_elem else None
 
-        # Extract all paragraphs within main
-        paragraphs = await main.query_selector_all("p")
-        if not paragraphs:
-            logger.debug("No paragraphs found in <main> tag")
-            return None, None
+        # Use helper function to extract paragraphs
+        body = await _extract_paragraphs_from_element(main, "Main tag")
 
-        body_parts = []
-        for p in paragraphs:
-            text = await p.inner_text()
-            if text and text.strip():
-                body_parts.append(text.strip())
-
-        body = "\n\n".join(body_parts) if body_parts else None
-
-        if body and len(body) > 100:  # Minimum content threshold
-            logger.info(f"✅ Main tag extraction: {len(paragraphs)} paragraphs, {len(body)} chars")
+        if body:
             return headline, body
 
         return None, None
@@ -222,7 +236,11 @@ async def _extract_article_with_playwright(url: str) -> tuple[str | None, str | 
             await page.goto(url, wait_until="networkidle", timeout=30000)
 
             # Additional wait for JavaScript execution and content rendering
-            await page.wait_for_timeout(500)
+            # NOTE: This fixed delay is necessary for some sites where networkidle
+            # resolves before all JavaScript-rendered content is fully visible.
+            # Playwright's explicit waits (wait_for_selector below) are preferred,
+            # but this provides a baseline for sites with complex async rendering.
+            await page.wait_for_timeout(JS_RENDER_DELAY_MS)
 
             # Wait for content to be visible
             try:
@@ -233,32 +251,26 @@ async def _extract_article_with_playwright(url: str) -> tuple[str | None, str | 
             logger.debug(f"Page loaded: {await page.title()}")
             logger.debug(f"Final URL after redirects: {page.url}")
 
-            # Try extraction strategies in order
-            headline, body = None, None
+            # Try extraction strategies in order until one succeeds
+            strategies = [
+                ("article_tag", "<article> tag", _try_article_tag),
+                ("main_tag", "<main> tag", _try_main_tag),
+                ("largest_block_heuristic", "largest block heuristic", _try_largest_block_heuristic),
+            ]
 
-            # Strategy 1: <article> tag
-            logger.debug("Trying Strategy 1: <article> tag")
-            headline, body = await _try_article_tag(page)
-            if headline or body:
-                logger.info("SUCCESS: article tag strategy")
-                strategy = "article_tag"
-            else:
-                # Strategy 2: <main> tag
-                logger.debug("Trying Strategy 2: <main> tag")
-                headline, body = await _try_main_tag(page)
+            headline, body = None, None
+            strategy = "none"
+
+            for strategy_id, strategy_name, strategy_func in strategies:
+                logger.debug(f"Trying Strategy: {strategy_name}")
+                headline, body = await strategy_func(page)
                 if headline or body:
-                    logger.info("SUCCESS: main tag strategy")
-                    strategy = "main_tag"
-                else:
-                    # Strategy 3: Largest block heuristic (ALWAYS TRIED)
-                    logger.debug("Trying Strategy 3: largest block heuristic")
-                    headline, body = await _try_largest_block_heuristic(page)
-                    if headline or body:
-                        logger.info("SUCCESS: largest block heuristic")
-                        strategy = "largest_block_heuristic"
-                    else:
-                        logger.error("FAILED: All extraction strategies failed")
-                        strategy = "none"
+                    logger.info(f"SUCCESS: {strategy_name}")
+                    strategy = strategy_id
+                    break
+
+            if strategy == "none":
+                logger.error("FAILED: All extraction strategies failed")
 
             # Extract metadata
             title = await page.title()
