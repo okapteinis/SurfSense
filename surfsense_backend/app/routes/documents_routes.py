@@ -528,8 +528,17 @@ async def read_documents(
         - If both 'skip' and 'page' are provided, 'skip' is used.
         - Results are scoped to documents owned by the current user.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+
     try:
         from sqlalchemy import func
+
+        # Log request parameters for debugging
+        logger.info(
+            f"Documents API called: user_id={user.id}, search_space_id={search_space_id}, "
+            f"page={page}, page_size={page_size}, skip={skip}, document_types={document_types}"
+        )
 
         # Normalize page_size to prevent memory exhaustion
         page_size = normalize_page_size(page_size)
@@ -590,10 +599,23 @@ async def read_documents(
                 )
             )
 
+        logger.info(
+            f"Documents API success: user_id={user.id}, returned {len(api_documents)} documents, total={total}"
+        )
         return PaginatedResponse(items=api_documents, total=total)
+    except HTTPException:
+        # Re-raise HTTP exceptions (validation errors, etc.)
+        raise
     except Exception as e:
+        # Log detailed error information
+        logger.error(
+            f"Documents API error: user_id={user.id}, search_space_id={search_space_id}, "
+            f"error_type={type(e).__name__}, error_message={e!s}",
+            exc_info=True
+        )
         raise HTTPException(
-            status_code=500, detail=f"Failed to fetch documents: {e!s}"
+            status_code=500,
+            detail=f"Failed to fetch documents: {type(e).__name__}: {e!s}"
         ) from e
 
 
