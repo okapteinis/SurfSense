@@ -9,10 +9,10 @@ import secrets
 from datetime import UTC, datetime, timedelta
 
 from fastapi.responses import JSONResponse
+import bcrypt
 import redis
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import OAuth2PasswordRequestForm
-from passlib.context import CryptContext
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -31,9 +31,6 @@ from app.users import current_active_user, get_jwt_strategy, cookie_transport
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/auth/2fa", tags=["2fa"])
-
-# Password context for verifying user passwords
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Redis client for temporary token storage
 # Uses the same Redis as Celery for consistency
@@ -520,8 +517,8 @@ async def login_with_2fa(
             detail="Incorrect email or password",
         )
 
-    # Verify password
-    if not pwd_context.verify(form_data.password, user.hashed_password):
+    # Verify password using bcrypt directly
+    if not bcrypt.checkpw(form_data.password.encode(), user.hashed_password.encode()):
         # Log failed password login
         await security_event_service.log_password_login(
             session=session,
