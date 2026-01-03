@@ -87,7 +87,7 @@ export default function WebpageCrawler() {
 			await response.json();
 
 			toast(t("success_toast"), {
-				description: t("success_toast_desc"),
+				description: `${urls.length} URL(s) added to Space ${search_space_id}`,
 			});
 
 			// Redirect to documents page
@@ -136,6 +136,9 @@ export default function WebpageCrawler() {
 					<CardTitle className="flex items-center gap-2">
 						<Globe className="h-5 w-5" />
 						{t("title")}
+						<span className="text-sm font-normal text-muted-foreground">
+							(Space {search_space_id})
+						</span>
 					</CardTitle>
 					<CardDescription>{t("subtitle")}</CardDescription>
 				</CardHeader>
