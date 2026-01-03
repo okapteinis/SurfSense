@@ -94,7 +94,7 @@ time pytest tests/test_two_fa_service.py::TestBackupCodeHashing
 **Severity:** Critical (Security Vulnerability)
 **File:** `docs/DOCUMENTS_LOADING_ANALYSIS.md` (Lines 319-327)
 **Gemini Comment:**
-> "Hardcoded SSH connection details exposed, including server IP address `46.62.230.195`, username `root`, and private key filename `id_ed25519_surfsense`. This constitutes a critical infrastructure security vulnerability."
+> "Hardcoded SSH connection details exposed, including server IP address, username, and private key filename. This constitutes a critical infrastructure security vulnerability."
 
 **Risk Assessment:**
 - **Confidentiality:** High - Reveals production server IP and SSH key naming
@@ -106,19 +106,19 @@ time pytest tests/test_two_fa_service.py::TestBackupCodeHashing
 Replace hardcoded values with placeholders:
 
 ```markdown
-# Before
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "journalctl -u surfsense"
+# Before (example pattern - actual values redacted)
+ssh -i ~/.ssh/<ACTUAL_KEY> <ACTUAL_USER>@<ACTUAL_IP> "journalctl -u surfsense"
 
-# After
+# After (correct pattern)
 ssh -i ~/.ssh/<KEY_FILE> <USER>@<SERVER_IP> "journalctl -u surfsense"
 ```
 
 **Action Required:**
 1. Edit `docs/DOCUMENTS_LOADING_ANALYSIS.md` in PR #314 branch
-2. Replace ALL instances of:
-   - `46.62.230.195` → `<VPS_IP>` or `<SERVER_IP>`
-   - `root` → `<USER>`
-   - `id_ed25519_surfsense` → `<SSH_KEY_FILE>`
+2. Replace ALL instances of actual values with placeholders:
+   - Server IP → `<VPS_IP>` or `<SERVER_IP>`
+   - Username → `<USER>`
+   - SSH key filename → `<SSH_KEY_FILE>`
 3. Add note: "Replace placeholders with your actual values"
 
 ---
@@ -152,18 +152,18 @@ DATABASE_URL="postgresql://surfsense:<PASSWORD>@localhost/surfsense"
 **Severity:** Medium (Information Disclosure)
 **File:** `docs/DOCUMENTS_LOADING_ANALYSIS.md`
 **Gemini Comment:**
-> "Full local file path disclosed (`/Users/ojarskapteinis/Documents/Kods/SurfSense`), revealing developer environment details that could inform targeted attacks."
+> "Full local file path disclosed (developer's home directory path), revealing developer environment details that could inform targeted attacks."
 
 **Risk Assessment:**
-- Reveals developer username (`ojarskapteinis`)
+- Reveals developer username and local environment details
 - Exposes local file structure
 - Could enable social engineering attacks
 
 **Required Fix:**
 
 ```bash
-# Before
-cd /Users/ojarskapteinis/Documents/Kods/SurfSense
+# Before (example - actual path redacted)
+cd /Users/<USERNAME>/Documents/Kods/SurfSense
 
 # After
 cd ~/Documents/Kods/SurfSense
@@ -172,7 +172,7 @@ cd /path/to/SurfSense
 ```
 
 **Action Required:**
-1. Find all instances of `/Users/ojarskapteinis/`
+1. Find all instances of absolute home directory paths
 2. Replace with `~` (home directory shorthand) or generic placeholder
 3. Apply consistently throughout document
 
@@ -233,15 +233,15 @@ except Exception as e:
 **Severity:** Low (Documentation Error)
 **File:** `docs/DOCUMENTS_LOADING_ANALYSIS.md`
 **Gemini Comment:**
-> "SSH key filename contains typo (`id_ed25319_surfsense` vs `id_ed25519_surfsense`), which would cause deployment script failures if copied."
+> "SSH key filename contains typo in documentation, which would cause deployment script failures if copied."
 
 **Required Fix:**
 
-Search for `id_ed25319_surfsense` and replace with `id_ed25519_surfsense` (319 → 25519).
+Search for typo in SSH key filename pattern and correct it.
 
 **Action Required:**
-1. Global search in document: `id_ed25319`
-2. Replace ALL instances with `id_ed25519`
+1. Global search in document for SSH key filename typos
+2. Replace with correct pattern
 3. Verify consistency across all code examples
 
 ---

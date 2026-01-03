@@ -185,7 +185,7 @@ Tasks show retries but never resolve to SUCCESS or FAILED.
 
 ```bash
 # Connect to VPS
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/<SSH_KEY> <USER>@<VPS_IP>
 
 # Mark all IN_PROGRESS tasks older than 1 hour as FAILED
 sudo -u postgres psql surfsense <<'EOF'
@@ -568,7 +568,7 @@ If cleanup causes issues:
 
 ```bash
 # Restore previous state (only if you have backup)
-ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195
+ssh -i ~/.ssh/<SSH_KEY> <USER>@<VPS_IP>
 
 # Revert failed tasks back to IN_PROGRESS (NOT RECOMMENDED)
 sudo -u postgres psql surfsense <<'EOF'
