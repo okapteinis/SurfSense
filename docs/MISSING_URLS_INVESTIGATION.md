@@ -32,7 +32,7 @@ journalctl -u surfsense --since "48 hours ago" --no-pager | grep -E "(POST.*docu
 **Findings:**
 - **100 POST requests** to `/api/v1/documents` in last 48 hours
 - **All returned 200 OK** (successful)
-- Requests from IP: 46.109.199.200 (user's IP)
+- Requests from IP: <USER_IP>
 - Timestamps span:
   - January 2: 21:07-21:43 (14 requests)
   - January 3: 00:25-17:09 (86+ requests)
