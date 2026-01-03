@@ -8,12 +8,9 @@ import io
 import secrets
 from typing import Any
 
+import bcrypt
 import pyotp
 import qrcode
-from passlib.context import CryptContext
-
-# Password context for hashing backup codes
-backup_code_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 class TwoFactorAuthService:
@@ -125,7 +122,8 @@ class TwoFactorAuthService:
             plain_code = f"{code_part1}-{code_part2}"
 
             plain_codes.append(plain_code)
-            hashed_codes.append(backup_code_context.hash(plain_code))
+            # Hash using bcrypt directly
+            hashed_codes.append(bcrypt.hashpw(plain_code.encode(), bcrypt.gensalt()).decode())
 
         return plain_codes, hashed_codes
 
@@ -154,7 +152,8 @@ class TwoFactorAuthService:
             formatted_code = code.upper()
 
         for i, hashed in enumerate(hashed_codes):
-            if hashed and backup_code_context.verify(formatted_code, hashed):
+            # Verify using bcrypt directly
+            if hashed and bcrypt.checkpw(formatted_code.encode(), hashed.encode()):
                 return True, i
 
         return False, None
