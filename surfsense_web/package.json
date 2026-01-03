@@ -63,7 +63,7 @@
 		"drizzle-orm": "^0.44.5",
 		"emblor": "^1.4.8",
 		"fumadocs-core": "^16.2.3",
-		"fumadocs-mdx": "^11.7.1",
+		"fumadocs-mdx": "^14.2.4",
 		"fumadocs-ui": "^15.6.6",
 		"geist": "^1.4.2",
 		"jotai": "^2.15.1",
