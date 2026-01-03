@@ -3,7 +3,9 @@ import logging
 import os
 import subprocess
 import traceback
+from datetime import datetime
 
+from cachetools import TTLCache
 from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -70,19 +72,39 @@ async def lifespan(app: FastAPI):
     yield
 
 
+# Cache for site configuration (TTL = 60 seconds, max 1 item)
+# Reduces database load by caching the registration status check
+_site_config_cache = TTLCache(maxsize=1, ttl=60)
+
+
 async def registration_allowed(session: AsyncSession = Depends(get_async_session)):
-    # Check environment variable first
+    # Check environment variable first (fast check)
     if not config.REGISTRATION_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Registration is disabled by system configuration"
         )
 
-    # Check site configuration database toggle
+    # Check cache first before hitting database
+    cache_key = "site_config_disable_registration"
+    if cache_key in _site_config_cache:
+        disable_registration = _site_config_cache[cache_key]
+        if disable_registration:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Registration is currently disabled. Please contact the administrator if you need access."
+            )
+        return True
+
+    # Cache miss - query database
     result = await session.execute(select(SiteConfiguration).where(SiteConfiguration.id == 1))
     site_config = result.scalar_one_or_none()
 
-    if site_config and site_config.disable_registration:
+    # Cache the result (will expire after 60 seconds)
+    disable_registration = site_config.disable_registration if site_config else False
+    _site_config_cache[cache_key] = disable_registration
+
+    if disable_registration:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Registration is currently disabled. Please contact the administrator if you need access."
