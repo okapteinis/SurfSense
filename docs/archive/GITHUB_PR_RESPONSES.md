@@ -50,7 +50,7 @@ Results:
 - Memory usage stable throughout test
 
 **Documentation:**
-See [VPS_TEST_RESULTS.md](../blob/nightly/VPS_TEST_RESULTS.md) for comprehensive test documentation (530+ lines).
+See [VPS_TEST_RESULTS.md](./VPS_TEST_RESULTS.md) for comprehensive test documentation (530+ lines).
 
 All changes maintain backward compatibility and improve production readiness.
 
@@ -116,7 +116,7 @@ Performance Improvement:
 3. ✅ Oil prices week - 2,891 chars, 18 paragraphs, 4.08s
 
 **Documentation:**
-See [VPS_TEST_RESULTS.md](../blob/nightly/VPS_TEST_RESULTS.md) for comprehensive integration testing (530+ lines).
+See [VPS_TEST_RESULTS.md](./VPS_TEST_RESULTS.md) for comprehensive integration testing (530+ lines).
 
 All changes maintain backward compatibility and improve maintainability.
 
@@ -213,8 +213,8 @@ Solution: Whisper fallback handles RequestBlocked errors automatically
 This is **expected behavior**, not a bug. YouTube actively blocks cloud provider IPs. The Whisper ASR fallback handles this gracefully in production.
 
 **Documentation:**
-- [VPS_TEST_RESULTS.md](../blob/nightly/VPS_TEST_RESULTS.md) - Comprehensive testing (530+ lines)
-- [.env.example](../blob/nightly/surfsense_backend/.env.example) - YouTube/Whisper configuration with VPS insights
+- [VPS_TEST_RESULTS.md](./VPS_TEST_RESULTS.md) - Comprehensive testing (530+ lines)
+- [.env.example](../../surfsense_backend/.env.example) - YouTube/Whisper configuration with VPS insights
 
 All changes maintain backward compatibility and improve thread-safety.
 
@@ -311,7 +311,7 @@ Test Dataset: 3 Al Jazeera articles
 - **Test Reliability:** Stronger assertions prevent regressions
 
 **Documentation:**
-See [VPS_TEST_RESULTS.md](../blob/nightly/VPS_TEST_RESULTS.md) for comprehensive performance benchmarks.
+See [VPS_TEST_RESULTS.md](./VPS_TEST_RESULTS.md) for comprehensive performance benchmarks.
 
 All optimizations maintain backward compatibility and improve code quality.
 
@@ -378,7 +378,7 @@ Test Execution:
 Also corrected the line number reference in `REVIEW_RESPONSES_PR303.md` as noted in your review.
 
 **Documentation:**
-See [VPS_TEST_RESULTS.md](../blob/nightly/VPS_TEST_RESULTS.md) - Diagnostic script testing section.
+See [VPS_TEST_RESULTS.md](./VPS_TEST_RESULTS.md) - Diagnostic script testing section.
 
 All changes maintain backward compatibility and improve robustness.
 
@@ -462,7 +462,7 @@ Thank you for acknowledging the improvements:
 These changes significantly improve production readiness for concurrent FastAPI environments.
 
 **Documentation:**
-See [VPS_TEST_RESULTS.md](../blob/nightly/VPS_TEST_RESULTS.md) for comprehensive YouTube testing documentation.
+See [VPS_TEST_RESULTS.md](./VPS_TEST_RESULTS.md) for comprehensive YouTube testing documentation.
 
 **Commits:**
 - Test suite fix: `7ca989e`

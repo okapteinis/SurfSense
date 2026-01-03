@@ -11,10 +11,11 @@ Tests cover:
 
 import base64
 
+import bcrypt
 import pyotp
 import pytest
 
-from app.services.two_fa_service import TwoFactorAuthService, backup_code_context
+from app.services.two_fa_service import TwoFactorAuthService
 
 
 @pytest.mark.unit
@@ -301,28 +302,28 @@ class TestTwoFactorAuthService:
 
 
 @pytest.mark.unit
-class TestBackupCodeContext:
-    """Test backup code hashing context."""
+class TestBackupCodeHashing:
+    """Test backup code hashing with bcrypt."""
 
     def test_hash_and_verify(self):
-        """Test that backup codes can be hashed and verified."""
+        """Test that backup codes can be hashed and verified using bcrypt."""
         code = "ABCD-1234"
 
-        hashed = backup_code_context.hash(code)
+        hashed = bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
 
-        assert backup_code_context.verify(code, hashed) is True
-        assert backup_code_context.verify("WRONG-CODE", hashed) is False
+        assert bcrypt.checkpw(code.encode(), hashed.encode()) is True
+        assert bcrypt.checkpw("WRONG-CODE".encode(), hashed.encode()) is False
 
     def test_hash_is_different_each_time(self):
         """Test that hashing same code produces different hashes (due to salt)."""
         code = "ABCD-1234"
 
-        hash1 = backup_code_context.hash(code)
-        hash2 = backup_code_context.hash(code)
+        hash1 = bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
+        hash2 = bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
 
         # Hashes should be different (bcrypt uses random salt)
         assert hash1 != hash2
 
         # But both should verify
-        assert backup_code_context.verify(code, hash1) is True
-        assert backup_code_context.verify(code, hash2) is True
+        assert bcrypt.checkpw(code.encode(), hash1.encode()) is True
+        assert bcrypt.checkpw(code.encode(), hash2.encode()) is True
