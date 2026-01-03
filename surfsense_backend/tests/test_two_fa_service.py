@@ -309,7 +309,8 @@ class TestBackupCodeHashing:
         """Test that backup codes can be hashed and verified using bcrypt."""
         code = "ABCD-1234"
 
-        hashed = bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
+        # Use 4 rounds for test performance (default is 12)
+        hashed = bcrypt.hashpw(code.encode(), bcrypt.gensalt(4)).decode()
 
         assert bcrypt.checkpw(code.encode(), hashed.encode()) is True
         assert bcrypt.checkpw("WRONG-CODE".encode(), hashed.encode()) is False
@@ -318,8 +319,9 @@ class TestBackupCodeHashing:
         """Test that hashing same code produces different hashes (due to salt)."""
         code = "ABCD-1234"
 
-        hash1 = bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
-        hash2 = bcrypt.hashpw(code.encode(), bcrypt.gensalt()).decode()
+        # Use 4 rounds for test performance (default is 12)
+        hash1 = bcrypt.hashpw(code.encode(), bcrypt.gensalt(4)).decode()
+        hash2 = bcrypt.hashpw(code.encode(), bcrypt.gensalt(4)).decode()
 
         # Hashes should be different (bcrypt uses random salt)
         assert hash1 != hash2
