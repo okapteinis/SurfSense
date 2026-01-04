@@ -5,6 +5,7 @@ These tests verify that the Playwright-based smart extraction works correctly
 across different news sites and doesn't break existing functionality.
 """
 
+from urllib.parse import urlparse
 import pytest
 from app.tasks.document_processors.url_crawler import (
     _try_article_tag,
@@ -229,7 +230,9 @@ async def test_canonical_url_extraction():
 
     # Source should be the final URL
     assert metadata.get("source") is not None
-    assert "aljazeera.com" in metadata["source"]
+    # Securely check hostname using urlparse (fixes CodeQL CWE-20 alert)
+    parsed_source = urlparse(metadata["source"])
+    assert parsed_source.hostname == "www.aljazeera.com" or parsed_source.hostname == "aljazeera.com"
 
 
 # Performance tests (optional - can be slow)

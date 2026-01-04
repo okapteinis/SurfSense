@@ -42,43 +42,28 @@ class RSSConnector:
         self.timeout = timeout
         self.max_redirects = 5  # Limit redirect chains
 
-    async def _validate_redirect_url(self, url: str) -> None:
+    async def _validate_redirect_url(self, url: str) -> list[str] | None:
         """
         Validate a redirect URL to prevent SSRF attacks.
 
         Args:
             url: The redirect URL to validate
 
+        Returns:
+            List of validated IP addresses if hostname resolved, or None if already an IP
+
         Raises:
             HTTPException: If URL is unsafe (private IP, metadata endpoint, etc.)
         """
         try:
-            parsed = urlparse(url)
-
-            # Validate scheme
-            if parsed.scheme not in ("http", "https"):
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Redirect to non-HTTP(S) scheme blocked: {parsed.scheme}"
-                )
-
-            # Check if hostname is a blocked IP
-            if parsed.hostname:
-                # Try to parse as IP address
-                try:
-                    import ipaddress
-                    ip = ipaddress.ip_address(parsed.hostname)
-                    if is_ip_blocked(parsed.hostname):
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Redirect to private/blocked IP address blocked: {parsed.hostname}"
-                        )
-                except ValueError:
-                    # Not an IP address, it's a hostname - resolve and check
-                    # For security, we validate the redirect URL using the same validator
-                    await validate_url_safe_for_ssrf(url, allow_private=False)
-
+            # Use the centralized validator which handles:
+            # - Scheme validation (http/https)
+            # - Blocked IPs and hostnames
+            # - IPv6 support
+            # - DNS resolution to check for private IPs (anti-rebinding)
+            _, validated_ips = await validate_url_safe_for_ssrf(url, allow_private=False)
             logger.debug(f"Redirect URL validated: {url}")
+            return validated_ips
 
         except HTTPException:
             raise
@@ -97,7 +82,7 @@ class RSSConnector:
 
         Args:
             client: httpx AsyncClient instance
-            url: Initial URL to fetch
+            url: Initial URL to fetch (must be pre-validated!)
             headers: Request headers
 
         Returns:
@@ -110,6 +95,7 @@ class RSSConnector:
         redirect_count = 0
 
         while redirect_count < self.max_redirects:
+            # Perform the request
             response = await client.get(current_url, headers=headers, follow_redirects=False)
 
             # If not a redirect, return the response
@@ -128,11 +114,29 @@ class RSSConnector:
             from urllib.parse import urljoin
             redirect_url = urljoin(str(response.url), location)
 
-            # Validate the redirect URL for SSRF
+            # Validate the redirect URL for SSRF and get resolved IPs
             logger.info(f"Validating redirect from {current_url} to {redirect_url}")
-            await self._validate_redirect_url(redirect_url)
+            validated_ips = await self._validate_redirect_url(redirect_url)
 
-            current_url = redirect_url
+            # Construct safe URL using validated IP to prevent DNS rebinding (TOCTOU)
+            if validated_ips:
+                parsed = urlparse(redirect_url)
+                ip_formatted = format_ip_for_url(validated_ips[0])
+
+                target_url = f"{parsed.scheme}://{ip_formatted}"
+                if parsed.port:
+                    target_url += f":{parsed.port}"
+                target_url += parsed.path or "/"
+                if parsed.query:
+                    target_url += f"?{parsed.query}"
+
+                # Update Host header for the redirected request
+                headers["Host"] = parsed.hostname
+                current_url = target_url
+            else:
+                # Hostname is likely an IP address already or validation returned None
+                current_url = redirect_url
+
             redirect_count += 1
 
         # Max redirects exceeded

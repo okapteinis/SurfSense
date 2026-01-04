@@ -62,31 +62,35 @@ class JellyfinConnector:
 
     def _build_url(self, endpoint: str) -> tuple[str, dict[str, str]]:
         """
-        Build request URL and headers, using validated IPs if available.
+        Build request URL and headers, using validated IPs.
 
         Args:
             endpoint: API endpoint path
 
         Returns:
             Tuple of (url, headers_dict)
+
+        Raises:
+            ValueError: If validated_ips is missing (should be caught in __init__)
         """
-        if self.validated_ips:
-            parsed = urlparse(self.server_url)
-            # Use first validated IP as connection target
-            ip_formatted = format_ip_for_url(self.validated_ips[0])
+        if not self.validated_ips:
+            # Should be unreachable due to __init__ check, but required for static analysis safety
+            raise ValueError("Security Error: No validated IPs available for SSRF protection")
 
-            # Reconstruct URL with IP
-            url = f"{parsed.scheme}://{ip_formatted}"
-            if parsed.port:
-                url += f":{parsed.port}"
-            url += endpoint
+        parsed = urlparse(self.server_url)
+        # Use first validated IP as connection target
+        ip_formatted = format_ip_for_url(self.validated_ips[0])
 
-            # Set Host header for virtual hosting/TLS SNI
-            headers = self.headers.copy()
-            headers["Host"] = parsed.hostname
-            return url, headers
-        else:
-            return f"{self.server_url}{endpoint}", self.headers
+        # Reconstruct URL with IP
+        url = f"{parsed.scheme}://{ip_formatted}"
+        if parsed.port:
+            url += f":{parsed.port}"
+        url += endpoint
+
+        # Set Host header for virtual hosting/TLS SNI
+        headers = self.headers.copy()
+        headers["Host"] = parsed.hostname
+        return url, headers
 
     async def test_connection(self) -> tuple[bool, str | None]:
         """

@@ -25,7 +25,7 @@ import yaml
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app.utils.sensitive_data_filter import sanitize_data
+from app.utils.sensitive_data_filter import sanitize_data, sanitize_data_strict
 
 # Default paths
 DEFAULT_SECRETS_FILE = "secrets.enc.yaml"
@@ -552,7 +552,8 @@ def main():
             response = handle_mcp_request(request)
             # Sanitize response before outputting (removes secrets from logs)
             # MCP responses should never contain raw secrets in stdout
-            sanitized_response = sanitize_data(response, show_values=False)
+            # Use strict sanitization to redact ALL string values
+            sanitized_response = sanitize_data_strict(response)
             print(json.dumps(sanitized_response), flush=True)
         except json.JSONDecodeError:
             print(json.dumps({"error": "Invalid JSON"}), flush=True)
@@ -561,10 +562,8 @@ def main():
 
 
 def redact_value(value: str, show_chars: int = 4) -> str:
-    """Redact a secret value, showing only first few characters."""
-    if not value or len(value) <= show_chars:
-        return "[REDACTED]"
-    return value[:show_chars] + "..." + "[REDACTED]"
+    """Redact a secret value, fully."""
+    return "[REDACTED]"
 
 
 def redact_dict_values(obj: dict) -> dict:
