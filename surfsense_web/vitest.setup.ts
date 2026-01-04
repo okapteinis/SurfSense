@@ -33,6 +33,3 @@ vi.mock('next-intl', () => ({
     return namespace ? `${namespace}.${key}` : key;
   },
 }));
-
-// Mock process.env
-process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL = 'http://localhost:8000';
