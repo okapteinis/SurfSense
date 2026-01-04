@@ -8,6 +8,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 
+import { getErrorMessageFromResponse } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -147,6 +148,21 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	};
 
 	const handleUpload = async () => {
+		if (!searchSpaceId) {
+			toast.error(t("upload_error"), {
+				description: "Search space ID is missing. Please refresh the page.",
+			});
+			return;
+		}
+
+		const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
+		if (!baseUrl) {
+			toast.error(t("upload_error"), {
+				description: "Backend URL is not configured. Please contact an administrator.",
+			});
+			return;
+		}
+
 		setIsUploading(true);
 		setUploadProgress(0);
 
@@ -164,24 +180,29 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				});
 			}, 200);
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
-				{
-					method: "POST",
-					credentials: "include",
-					headers: {},
-					body: formData,
-				}
-			);
+			const endpoint = `${baseUrl}/api/v1/documents/fileupload`;
+
+			const response = await fetch(endpoint, {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Cache-Control": "no-cache, no-store, must-revalidate",
+					Pragma: "no-cache",
+					Expires: "0",
+				},
+				cache: "no-store",
+				body: formData,
+			});
 
 			clearInterval(progressInterval);
-			setUploadProgress(100);
 
 			if (!response.ok) {
-				throw new Error("Upload failed");
+				const errorMessage = await getErrorMessageFromResponse(response, "Upload failed");
+				throw new Error(errorMessage);
 			}
 
 			await response.json();
+			setUploadProgress(100);
 
 			toast(t("upload_initiated"), {
 				description: t("upload_initiated_desc"),
