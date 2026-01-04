@@ -13,6 +13,7 @@ from app.db import (
     get_async_session,
 )
 from app.users import current_active_user
+from app.utils.sensitive_data_filter import sanitize_data
 
 logger = logging.getLogger(__name__)
 
@@ -232,6 +233,9 @@ async def test_luma_connector(
         # Try to fetch events
         events, events_error = luma.get_all_events(limit=10)
 
+        # Sanitize potentially sensitive error info
+        sanitized_error = sanitize_data(events_error) if events_error else None
+
         return {
             "message": "Luma connector is working correctly",
             "user_info": {
@@ -239,7 +243,7 @@ async def test_luma_connector(
                 "email": user_info.get("email", "Unknown"),
             },
             "event_count": len(events) if not events_error else 0,
-            "events_error": events_error,
+            "events_error": sanitized_error,
         }
 
     except HTTPException:
