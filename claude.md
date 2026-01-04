@@ -743,7 +743,7 @@ ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
 
 ---
 
-## 🔄 PROTOCOL v3.2 UPDATES (Jan 1, 2026)
+## 🔄 PROTOCOL v3.2 UPDATES (Jan 4, 2026)
 
 ### Critical Additions to v3.0
 
@@ -824,7 +824,6 @@ Post-deployment:
 - [ ] Sync any VPS fixes back to nightly
 - [ ] Update pyproject.toml if dependencies were installed
 - [ ] Create migration merge if heads diverged
-- [ ] 
 ---
 
 ## 📜 **Change Log**
@@ -1005,7 +1004,7 @@ EACCES: permission denied, open '.source/server.ts'
 ls -ld .source .next .env 2>/dev/null
 
 # Fix ownership for service user
-chown -R surfsense:surfsense .source .next .env .env.local 2>/dev/null
+chown -R surfsense:surfsense .source .next .env .env.local .env.local 2>/dev/null
 
 # Verify permissions
 ls -ld .source .next .env 2>/dev/null
@@ -1041,7 +1040,7 @@ Before running deployment on PR #320 or similar large changes:
 - [ ] `.source/index.ts` EXISTS and contains `export * from './server';`
 - [ ] No migration conflicts (`alembic heads` shows single head)
 - [ ] Build tested locally: `pnpm build` succeeds
-- [ ] After git pull: `chown -R surfsense:surfsense .source .next .env`
+- [ ] After git pull: `chown -R surfsense:surfsense .source .next .env .env.local`
 - [ ] Service restart: `systemctl restart surfsense-frontend`
 - [ ] Health check: `curl http://localhost:3000`
 
