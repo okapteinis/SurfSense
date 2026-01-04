@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { getErrorMessageFromResponse } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -52,6 +53,18 @@ export default function WebpageCrawler() {
 			return;
 		}
 
+		const spaceIdInt = parseInt(search_space_id);
+		if (isNaN(spaceIdInt)) {
+			setError("Invalid Search Space ID. Please refresh the page.");
+			return;
+		}
+
+		const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
+		if (!baseUrl) {
+			setError("Backend URL is not configured. Please contact an administrator.");
+			return;
+		}
+
 		setError(null);
 		setIsSubmitting(true);
 
@@ -63,25 +76,29 @@ export default function WebpageCrawler() {
 			// Extract URLs from tags
 			const urls = urlTags.map((tag) => tag.text);
 
+			const endpoint = `${baseUrl}/api/v1/documents`;
+
 			// Make API call to backend
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents`,
-				{
-					method: "POST",
-					credentials: "include",
-					headers: {
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						document_type: "CRAWLED_URL",
-						content: urls,
-						search_space_id: parseInt(search_space_id),
-					}),
-				}
-			);
+			const response = await fetch(endpoint, {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Content-Type": "application/json",
+					"Cache-Control": "no-cache, no-store, must-revalidate",
+					Pragma: "no-cache",
+					Expires: "0",
+				},
+				cache: "no-store",
+				body: JSON.stringify({
+					document_type: "CRAWLED_URL",
+					content: urls,
+					search_space_id: spaceIdInt,
+				}),
+			});
 
 			if (!response.ok) {
-				throw new Error("Failed to crawl URLs");
+				const errorMessage = await getErrorMessageFromResponse(response, "Failed to crawl URLs");
+				throw new Error(errorMessage);
 			}
 
 			await response.json();
