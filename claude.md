@@ -741,6 +741,24 @@ ssh -i ~/.ssh/id_ed25519_surfsense root@46.62.230.195 "
 *Updated: Dec 31, 2025 - Post-incident deployment protocol*
 *Disk: 55GB free (was 16GB) - Cleanup completed*
 
+## 🧪 **Testing Workflow**
+
+### Frontend (Vitest)
+- **Run tests:** `cd surfsense_web && pnpm run test`
+- **Coverage:** `pnpm run test:coverage`
+- **Requirement:** New features must include tests in `*.test.tsx` or `*.test.ts`.
+- **MSW:** Add API mocks to `surfsense_web/tests/mocks/handlers.ts`.
+
+### Backend (Pytest)
+- **Run tests:** `cd surfsense_backend && pytest`
+- **Coverage:** `pytest --cov=app`
+
+### Pre-commit Checklist
+- [ ] Frontend tests passing (`pnpm run test`)
+- [ ] Backend tests passing (`pytest`)
+- [ ] Linting passing (`pnpm run lint` / `biome check`)
+- [ ] Type check passing (`tsc --noEmit`)
+
 ---
 
 ## 🔄 PROTOCOL v3.2 UPDATES (Jan 4, 2026)
