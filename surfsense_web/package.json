@@ -48,7 +48,7 @@
 		"@radix-ui/react-tooltip": "^1.2.7",
 		"@tabler/icons-react": "^3.34.1",
 		"@tanstack/query-core": "^5.90.7",
-		"@tanstack/react-query": "^5.90.7",
+		"@tanstack/react-query": "5.90.7",
 		"@tanstack/react-query-devtools": "^5.90.2",
 		"@tanstack/react-table": "^8.21.3",
 		"@types/mdx": "^2.0.13",
@@ -70,7 +70,7 @@
 		"jotai-tanstack-query": "^0.11.0",
 		"lucide-react": "^0.477.0",
 		"motion": "^12.23.22",
-		"next": "^15.5.9",
+		"next": "15.5.9",
 		"next-intl": "^3.26.5",
 		"next-themes": "^0.4.6",
 		"pg": "^8.16.3",
@@ -104,11 +104,11 @@
 		"@types/pg": "^8.15.5",
 		"cross-env": "^7.0.3",
 		"drizzle-kit": "^0.31.8",
-		"eslint": "^9.32.0",
+		"eslint": "9.32.0",
 		"eslint-config-next": "15.2.0",
-		"tailwindcss": "^4.1.11",
+		"tailwindcss": "4.1.11",
 		"tsx": "^4.20.6",
-		"typescript": "^5.8.3"
+		"typescript": "5.8.3"
 	},
 	"pnpm": {
 		"overrides": {
