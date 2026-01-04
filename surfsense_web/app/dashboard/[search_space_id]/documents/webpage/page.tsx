@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { getErrorMessageFromResponse } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -58,6 +59,12 @@ export default function WebpageCrawler() {
 			return;
 		}
 
+		const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
+		if (!baseUrl) {
+			setError("Backend URL is not configured. Please contact an administrator.");
+			return;
+		}
+
 		setError(null);
 		setIsSubmitting(true);
 
@@ -69,7 +76,6 @@ export default function WebpageCrawler() {
 			// Extract URLs from tags
 			const urls = urlTags.map((tag) => tag.text);
 
-			const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "";
 			const endpoint = `${baseUrl}/api/v1/documents`;
 
 			// Make API call to backend
@@ -91,15 +97,7 @@ export default function WebpageCrawler() {
 			});
 
 			if (!response.ok) {
-				const contentType = response.headers.get("content-type");
-				let errorMessage = "Failed to crawl URLs";
-
-				if (contentType && contentType.includes("application/json")) {
-					const errorData = await response.json();
-					errorMessage = errorData.detail || errorMessage;
-				} else {
-					errorMessage = `Request failed with status ${response.status}`;
-				}
+				const errorMessage = await getErrorMessageFromResponse(response, "Failed to crawl URLs");
 				throw new Error(errorMessage);
 			}
 

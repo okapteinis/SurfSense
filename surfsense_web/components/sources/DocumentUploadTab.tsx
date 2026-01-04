@@ -8,6 +8,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 
+import { getErrorMessageFromResponse } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -154,6 +155,14 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 			return;
 		}
 
+		const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
+		if (!baseUrl) {
+			toast.error(t("upload_error"), {
+				description: "Backend URL is not configured. Please contact an administrator.",
+			});
+			return;
+		}
+
 		setIsUploading(true);
 		setUploadProgress(0);
 
@@ -171,7 +180,6 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				});
 			}, 200);
 
-			const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "";
 			const endpoint = `${baseUrl}/api/v1/documents/fileupload`;
 
 			const response = await fetch(endpoint, {
@@ -189,15 +197,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 			clearInterval(progressInterval);
 
 			if (!response.ok) {
-				const contentType = response.headers.get("content-type");
-				let errorMessage = "Upload failed";
-
-				if (contentType && contentType.includes("application/json")) {
-					const errorData = await response.json();
-					errorMessage = errorData.detail || errorMessage;
-				} else {
-					errorMessage = `Upload failed with status ${response.status}`;
-				}
+				const errorMessage = await getErrorMessageFromResponse(response, "Upload failed");
 				throw new Error(errorMessage);
 			}
 

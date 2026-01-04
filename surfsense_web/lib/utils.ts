@@ -11,3 +11,26 @@ export function getChatTitleFromMessages(messages: Message[]) {
 	if (userMessages.length === 0) return "Untitled Chat";
 	return userMessages[0].content;
 }
+
+/**
+ * Extracts a meaningful error message from a fetch Response.
+ * Handles JSON error responses (expecting 'detail' field) and falls back
+ * to status text for non-JSON responses.
+ */
+export async function getErrorMessageFromResponse(
+	response: Response,
+	defaultMessage = "An unexpected error occurred"
+): Promise<string> {
+	try {
+		const contentType = response.headers.get("content-type");
+		
+		if (contentType && contentType.includes("application/json")) {
+			const errorData = await response.json();
+			return errorData.detail || defaultMessage;
+		}
+		
+		return `${defaultMessage} (Status: ${response.status})`;
+	} catch (error) {
+		return defaultMessage;
+	}
+}
