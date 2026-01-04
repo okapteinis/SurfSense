@@ -1,6 +1,7 @@
 import '@testing-library/jest-dom';
 import { beforeAll, afterEach, afterAll, vi } from 'vitest';
 import { setupServer } from 'msw/node';
+import { cleanup } from '@testing-library/react';
 import { handlers } from './tests/mocks/handlers';
 
 export const server = setupServer(...handlers);
@@ -11,8 +12,12 @@ beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
 //  Close server after all tests
 afterAll(() => server.close());
 
-// Reset handlers after each test
-afterEach(() => server.resetHandlers());
+// Reset handlers and clean up after each test
+afterEach(() => {
+  server.resetHandlers();
+  cleanup();
+  vi.clearAllMocks();
+});
 
 // Mock Next.js router
 vi.mock('next/navigation', () => ({
