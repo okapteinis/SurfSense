@@ -69,7 +69,8 @@ export async function fetchWithTimeout(
 		return response;
 	} catch (error: any) {
 		clearTimeout(id);
-		if (error.name === 'AbortError') {
+		// Check if it was our timeout that caused the abort
+		if (error.name === 'AbortError' && controller.signal.aborted) {
 			throw new Error(`Request timed out after ${timeoutMs}ms`);
 		}
 		throw error;
