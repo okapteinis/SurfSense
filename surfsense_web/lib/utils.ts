@@ -13,6 +13,15 @@ export function getChatTitleFromMessages(messages: Message[]) {
 }
 
 /**
+ * Standard headers to prevent caching on critical API requests (mutations).
+ */
+export const NO_CACHE_HEADERS = {
+	"Cache-Control": "no-cache, no-store, must-revalidate",
+	Pragma: "no-cache",
+	Expires: "0",
+};
+
+/**
  * Extracts a meaningful error message from a fetch Response.
  * Handles JSON error responses (expecting 'detail' field) and falls back
  * to status text for non-JSON responses.
@@ -65,14 +74,14 @@ export async function fetchWithTimeout(
 			...options,
 			signal: controller.signal,
 		});
-		clearTimeout(id);
 		return response;
 	} catch (error: any) {
-		clearTimeout(id);
 		// Check if it was our timeout that caused the abort
 		if (error.name === 'AbortError' && controller.signal.aborted) {
 			throw new Error(`Request timed out after ${timeoutMs}ms`);
 		}
 		throw error;
+	} finally {
+		clearTimeout(id);
 	}
 }

@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { getErrorMessageFromResponse, fetchWithTimeout } from "@/lib/utils";
+import { getErrorMessageFromResponse, fetchWithTimeout, NO_CACHE_HEADERS } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -86,13 +86,7 @@ export default function WebpageCrawler() {
 				credentials: "include",
 				headers: {
 					"Content-Type": "application/json",
-					// CRITICAL: Cache control headers to prevent Next.js request memoization.
-					// Next.js 13+ automatically memoizes fetch requests. For API mutations,
-					// we MUST bypass this to ensure the request actually reaches the backend
-					// instead of returning a potentially stale cached response.
-					"Cache-Control": "no-cache, no-store, must-revalidate",
-					Pragma: "no-cache",
-					Expires: "0",
+					...NO_CACHE_HEADERS,
 				},
 				cache: "no-store",
 				body: JSON.stringify({

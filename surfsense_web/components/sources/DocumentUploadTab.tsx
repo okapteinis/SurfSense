@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 
-import { getErrorMessageFromResponse, fetchWithTimeout } from "@/lib/utils";
+import { getErrorMessageFromResponse, fetchWithTimeout, NO_CACHE_HEADERS } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -190,12 +190,7 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				method: "POST",
 				credentials: "include",
 				headers: {
-					// CRITICAL: Cache control headers to prevent Next.js request memoization.
-					// Next.js 13+ automatically memoizes fetch requests. For API mutations,
-					// we MUST bypass this to ensure the request actually reaches the backend.
-					"Cache-Control": "no-cache, no-store, must-revalidate",
-					Pragma: "no-cache",
-					Expires: "0",
+					...NO_CACHE_HEADERS,
 				},
 				cache: "no-store",
 				body: formData,
