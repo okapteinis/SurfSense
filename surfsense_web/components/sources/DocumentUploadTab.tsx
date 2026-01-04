@@ -147,6 +147,13 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 	};
 
 	const handleUpload = async () => {
+		if (!searchSpaceId) {
+			toast.error(t("upload_error"), {
+				description: "Search space ID is missing. Please refresh the page.",
+			});
+			return;
+		}
+
 		setIsUploading(true);
 		setUploadProgress(0);
 
@@ -164,24 +171,38 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 				});
 			}, 200);
 
-			const response = await fetch(
-				`${process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL}/api/v1/documents/fileupload`,
-				{
-					method: "POST",
-					credentials: "include",
-					headers: {},
-					body: formData,
-				}
-			);
+			const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL || "";
+			const endpoint = `${baseUrl}/api/v1/documents/fileupload`;
+
+			const response = await fetch(endpoint, {
+				method: "POST",
+				credentials: "include",
+				headers: {
+					"Cache-Control": "no-cache, no-store, must-revalidate",
+					Pragma: "no-cache",
+					Expires: "0",
+				},
+				cache: "no-store",
+				body: formData,
+			});
 
 			clearInterval(progressInterval);
-			setUploadProgress(100);
 
 			if (!response.ok) {
-				throw new Error("Upload failed");
+				const contentType = response.headers.get("content-type");
+				let errorMessage = "Upload failed";
+
+				if (contentType && contentType.includes("application/json")) {
+					const errorData = await response.json();
+					errorMessage = errorData.detail || errorMessage;
+				} else {
+					errorMessage = `Upload failed with status ${response.status}`;
+				}
+				throw new Error(errorMessage);
 			}
 
 			await response.json();
+			setUploadProgress(100);
 
 			toast(t("upload_initiated"), {
 				description: t("upload_initiated_desc"),
