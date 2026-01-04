@@ -8,7 +8,7 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
 
-import { getErrorMessageFromResponse } from "@/lib/utils";
+import { getErrorMessageFromResponse, fetchWithTimeout } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -157,8 +157,10 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 
 		const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
 		if (!baseUrl) {
+			const errorMsg = "Backend URL is not configured. Please contact an administrator.";
+			console.error("Configuration Error:", errorMsg);
 			toast.error(t("upload_error"), {
-				description: "Backend URL is not configured. Please contact an administrator.",
+				description: errorMsg,
 			});
 			return;
 		}
@@ -182,17 +184,22 @@ export function DocumentUploadTab({ searchSpaceId }: DocumentUploadTabProps) {
 
 			const endpoint = `${baseUrl}/api/v1/documents/fileupload`;
 
-			const response = await fetch(endpoint, {
+			// Use fetchWithTimeout to prevent hanging requests during large file uploads.
+			// Set timeout to 60 seconds.
+			const response = await fetchWithTimeout(endpoint, {
 				method: "POST",
 				credentials: "include",
 				headers: {
+					// CRITICAL: Cache control headers to prevent Next.js request memoization.
+					// Next.js 13+ automatically memoizes fetch requests. For API mutations,
+					// we MUST bypass this to ensure the request actually reaches the backend.
 					"Cache-Control": "no-cache, no-store, must-revalidate",
 					Pragma: "no-cache",
 					Expires: "0",
 				},
 				cache: "no-store",
 				body: formData,
-			});
+			}, 60000);
 
 			clearInterval(progressInterval);
 

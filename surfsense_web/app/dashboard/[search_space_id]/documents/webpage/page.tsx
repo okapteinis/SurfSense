@@ -6,7 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import { getErrorMessageFromResponse } from "@/lib/utils";
+import { getErrorMessageFromResponse, fetchWithTimeout } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
 	Card,
@@ -61,7 +61,9 @@ export default function WebpageCrawler() {
 
 		const baseUrl = process.env.NEXT_PUBLIC_FASTAPI_BACKEND_URL;
 		if (!baseUrl) {
-			setError("Backend URL is not configured. Please contact an administrator.");
+			const errorMsg = "Backend URL is not configured. Please contact an administrator.";
+			console.error("Configuration Error:", errorMsg);
+			setError(errorMsg);
 			return;
 		}
 
@@ -78,12 +80,16 @@ export default function WebpageCrawler() {
 
 			const endpoint = `${baseUrl}/api/v1/documents`;
 
-			// Make API call to backend
-			const response = await fetch(endpoint, {
+			// Make API call to backend with timeout (30 seconds)
+			const response = await fetchWithTimeout(endpoint, {
 				method: "POST",
 				credentials: "include",
 				headers: {
 					"Content-Type": "application/json",
+					// CRITICAL: Cache control headers to prevent Next.js request memoization.
+					// Next.js 13+ automatically memoizes fetch requests. For API mutations,
+					// we MUST bypass this to ensure the request actually reaches the backend
+					// instead of returning a potentially stale cached response.
 					"Cache-Control": "no-cache, no-store, must-revalidate",
 					Pragma: "no-cache",
 					Expires: "0",
@@ -94,7 +100,7 @@ export default function WebpageCrawler() {
 					content: urls,
 					search_space_id: spaceIdInt,
 				}),
-			});
+			}, 30000);
 
 			if (!response.ok) {
 				const errorMessage = await getErrorMessageFromResponse(response, "Failed to crawl URLs");
