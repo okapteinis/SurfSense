@@ -9,6 +9,8 @@
 		"build": "next build",
 		"start": "next start",
 		"lint": "next lint",
+		"test": "vitest run",
+		"test:watch": "vitest",
 		"format": "biome check --write ./ --max-diagnostics 500",
 		"debug": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
 		"debug:browser": "cross-env NODE_OPTIONS=--inspect next dev --turbopack",
@@ -99,16 +101,22 @@
 		"@eslint/eslintrc": "^3.3.1",
 		"@tailwindcss/postcss": "4.1.11",
 		"@tailwindcss/typography": "0.5.16",
+		"@testing-library/jest-dom": "^6.9.1",
+		"@testing-library/react": "^16.3.1",
+		"@testing-library/user-event": "^14.6.1",
 		"@types/canvas-confetti": "^1.9.0",
 		"@types/node": "^20.19.9",
 		"@types/pg": "^8.15.5",
+		"@vitejs/plugin-react": "^5.1.2",
 		"cross-env": "^7.0.3",
 		"drizzle-kit": "^0.31.8",
 		"eslint": "9.32.0",
 		"eslint-config-next": "15.2.0",
+		"jsdom": "^27.4.0",
 		"tailwindcss": "4.1.11",
 		"tsx": "^4.20.6",
-		"typescript": "5.8.3"
+		"typescript": "5.8.3",
+		"vitest": "^4.0.16"
 	},
 	"pnpm": {
 		"overrides": {
