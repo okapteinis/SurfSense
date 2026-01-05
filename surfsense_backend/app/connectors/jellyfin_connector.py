@@ -124,6 +124,32 @@ class JellyfinConnector:
         except Exception as e:
             return False, f"Unexpected error: {e!s}"
 
+    async def get_server_info(self) -> tuple[dict | None, str | None]:
+        """
+        Retrieve server information from the Jellyfin server.
+
+        Returns:
+            Tuple of (info_dict_or_none, error_message_or_none)
+        """
+        try:
+            url, headers = self._build_url("/System/Info")
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.get(url, headers=headers)
+
+            if response.status_code == 200:
+                return response.json(), None
+            elif response.status_code == 401:
+                return None, "Invalid API key"
+            else:
+                return None, f"Server returned status {response.status_code}"
+
+        except httpx.ConnectError as e:
+            return None, f"Connection failed: {e!s}"
+        except httpx.TimeoutException:
+            return None, "Connection timeout"
+        except Exception as e:
+            return None, f"Unexpected error: {e!s}"
+
     async def get_users(self) -> tuple[list[dict], str | None]:
         """
         Get list of users on the server.
