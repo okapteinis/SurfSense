@@ -86,6 +86,8 @@ async def test_jellyfin_connection(
             version = info.get("Version", "Unknown")
         else:
             # If fetching server info fails, continue without it; connection was already tested above.
+                        if info_error:
+                                            logger.warning(f"Could not fetch Jellyfin server info: {info_error}")
             server_name = None
             version = None
 
