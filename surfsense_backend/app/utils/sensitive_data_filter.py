@@ -169,28 +169,26 @@ def sanitize_data(data: Any, show_values: bool = False) -> Any:
 
 def sanitize_data_strict(data: Any) -> Any:
     """
-    Strictly sanitize data by redacting ALL string values in a structure.
-    Used for logging entire configuration objects or decrypted secrets
-    where any string value could be sensitive.
+    Strictly sanitize data by redacting the entire structure.
+
+    This is used for logging entire configuration objects or decrypted
+    secrets where any part of the structure or any value could be
+    considered sensitive. It intentionally does not preserve any
+    information about the original data.
 
     Args:
-        data: Data to sanitize
+        data: Data to sanitize (ignored)
 
     Returns:
-        Structure with all string values redacted
+        A constant redacted placeholder safe for logging.
 
     Examples:
         >>> sanitize_data_strict({"url": "http://secret", "user": "admin"})
-        {'url': '***REDACTED***', 'user': '***REDACTED***'}
+        '***REDACTED***'
+        >>> sanitize_data_strict(["a", "b", "c"])
+        '***REDACTED***'
     """
-    if isinstance(data, dict):
-        return {key: sanitize_data_strict(value) for key, value in data.items()}
-    elif isinstance(data, list):
-        return [sanitize_data_strict(item) for item in data]
-    elif isinstance(data, str):
-        return "***REDACTED***"
-    else:
-        return data
+    return "***REDACTED***"
 
 
 
