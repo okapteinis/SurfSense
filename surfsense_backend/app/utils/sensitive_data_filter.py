@@ -8,6 +8,9 @@ such as passwords, API keys, tokens, and email addresses before logging.
 import re
 from typing import Any, Dict, List, Set
 
+# Redaction placeholder for sensitive data
+REDACTION_PLACEHOLDER = "+++REDACTED+++"
+
 
 # Sensitive keys to redact
 SENSITIVE_KEYS: Set[str] = {
@@ -167,7 +170,7 @@ def sanitize_data(data: Any, show_values: bool = False) -> Any:
         return data
 
 
-def sanitize_data_strict(data: Any) -> Any:
+def sanitize_data_strict(_data: Any) -> str:
     """
     Strictly sanitize data by redacting the entire structure.
 
