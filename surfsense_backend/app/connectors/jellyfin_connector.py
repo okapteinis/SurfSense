@@ -4,6 +4,7 @@ Jellyfin connector for media library access.
 
 import logging
 from urllib.parse import urlparse
+import ipaddress
 
 import httpx
 
@@ -78,8 +79,23 @@ class JellyfinConnector:
             raise ValueError("Security Error: No validated IPs available for SSRF protection")
 
         parsed = urlparse(self.server_url)
-        # Use first validated IP as connection target
-        ip_formatted = format_ip_for_url(self.validated_ips[0])
+
+        # SECURITY: Only allow http/https schemes to avoid SSRF via other protocols
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"Unsupported URL scheme for Jellyfin connector: {parsed.scheme!r}")
+
+        # SECURITY: Ensure the validated IP is actually an IP address and not private/loopback
+        raw_ip = self.validated_ips[0]
+        try:
+            ip_obj = ipaddress.ip_address(raw_ip)
+        except ValueError as exc:
+            raise ValueError(f"Invalid validated IP for Jellyfin connector: {raw_ip!r}") from exc
+
+        if ip_obj.is_private or ip_obj.is_loopback or ip_obj.is_link_local:
+            raise ValueError(f"Refusing to connect to non-public IP address: {raw_ip!r}")
+
+        # Use first validated IP as connection target, formatted for URL (handles IPv6)
+        ip_formatted = format_ip_for_url(raw_ip)
 
         # Reconstruct URL with IP
         url = f"{parsed.scheme}://{ip_formatted}"
