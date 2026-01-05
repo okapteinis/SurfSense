@@ -1,4 +1,5 @@
 """
+
 Jellyfin connector for media library access.
 """
 
@@ -133,9 +134,10 @@ class JellyfinConnector:
         """
         try:
             url, headers = self._build_url("/System/Info")
+                        assert url.startswith(("http://", "https://")), "URL must be http or https"
+            
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(url, headers=headers)  # lgtm[py/ssrf]
-                            # NOTE: url is safe - built via _build_url() which uses validated_ips to prevent SS
+                response = await client.get(url, headers=headers)
             
 
             if response.status_code == 200:
