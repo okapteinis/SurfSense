@@ -91,7 +91,31 @@ class RSSConnector:
         Raises:
             HTTPException: If any redirect URL is unsafe or max redirects exceeded
         """
-        current_url = url
+        # Defensive: re-validate the initial URL here to ensure SSRF protection
+        try:
+            validated_url, validated_ips = await validate_url_safe_for_ssrf(url, allow_private=False)
+        except HTTPException as e:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid initial URL for redirect handling: {e.detail}",
+            ) from e
+
+        # If validation returned specific IPs, lock the request to the first IP
+        current_url = validated_url
+        if validated_ips:
+            parsed_initial = urlparse(validated_url)
+            ip_formatted = format_ip_for_url(validated_ips[0])
+
+            current_url = f"{parsed_initial.scheme}://{ip_formatted}"
+            if parsed_initial.port:
+                current_url += f":{parsed_initial.port}"
+            current_url += parsed_initial.path or "/"
+            if parsed_initial.query:
+                current_url += f"?{parsed_initial.query}"
+
+            # Ensure Host header reflects the original hostname
+            headers["Host"] = parsed_initial.hostname or headers.get("Host")
+
         redirect_count = 0
 
         while redirect_count < self.max_redirects:
