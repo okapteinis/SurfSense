@@ -119,6 +119,9 @@ class JellyfinConnector:
         try:
             url, headers = self._build_url("/System/Info")
             async with httpx.AsyncClient(timeout=30.0) as client:
+                if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                    raise ValueError(f"Invalid URL scheme detected: {url}")
+
                 response = await client.get(url, headers=headers)
 
                 if response.status_code == 200:
@@ -150,9 +153,11 @@ class JellyfinConnector:
         """
         try:
             url, headers = self._build_url("/System/Info")
-                        assert url.startswith(("http://", "https://")), "URL must be http or https"
             
             async with httpx.AsyncClient(timeout=30.0) as client:
+                if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                    raise ValueError(f"Invalid URL scheme detected: {url}")
+
                 response = await client.get(url, headers=headers)
             
 
@@ -180,6 +185,9 @@ class JellyfinConnector:
         try:
             url, headers = self._build_url("/Users")
             async with httpx.AsyncClient(timeout=30.0) as client:
+                if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                    raise ValueError(f"Invalid URL scheme detected: {url}")
+
                 response = await client.get(url, headers=headers)
 
                 if response.status_code == 200:
@@ -205,6 +213,10 @@ class JellyfinConnector:
                     endpoint = "/Library/VirtualFolders"
 
                 url, headers = self._build_url(endpoint)
+
+                if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                    raise ValueError(f"Invalid URL scheme detected: {url}")
+
                 response = await client.get(url, headers=headers)
 
                 if response.status_code == 200:
@@ -267,6 +279,10 @@ class JellyfinConnector:
                     endpoint = "/Items"
 
                 url, headers = self._build_url(endpoint)
+
+                if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                    raise ValueError(f"Invalid URL scheme detected: {url}")
+
                 response = await client.get(url, headers=headers, params=params)
 
                 if response.status_code == 200:
@@ -292,17 +308,12 @@ class JellyfinConnector:
 
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                params = {
-                    "Limit": limit,
-                    "Recursive": "true",
-                    "Filters": "IsFavorite",
-                    "Fields": "Overview,Genres,Studios,DateCreated,PremiereDate,ProductionYear,CommunityRating",
-                    "SortBy": "DateCreated",
-                    "SortOrder": "Descending",
-                }
-
                 endpoint = f"/Users/{self.user_id}/Items"
                 url, headers = self._build_url(endpoint)
+
+                if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                    raise ValueError(f"Invalid URL scheme detected: {url}")
+
                 response = await client.get(
                     url,
                     headers=headers,
@@ -343,6 +354,10 @@ class JellyfinConnector:
 
                 endpoint = f"/Users/{self.user_id}/Items"
                 url, headers = self._build_url(endpoint)
+
+                if not isinstance(url, str) or not url.startswith(("http://", "https://")):
+                    raise ValueError(f"Invalid URL scheme detected: {url}")
+
                 response = await client.get(
                     url,
                     headers=headers,
