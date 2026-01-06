@@ -2,6 +2,7 @@
 
 from typing import Annotated
 import asyncio
+import logging
 import os
 import string
 import uuid
@@ -38,6 +39,8 @@ from app.tasks.celery_tasks.document_tasks import (
     process_file_upload_task,
     process_youtube_video_task,
 )
+
+logger = logging.getLogger(__name__)
 
 try:
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
@@ -358,6 +361,11 @@ async def create_documents(
         # CRITICAL SECURITY: Verify user has write permission (public spaces are read-only for non-owners)
         await verify_space_write_permission(session, data.search_space_id, user)
 
+        logger.info(
+            f"Received document creation request: type={data.document_type}, "
+            f"count={len(data.content)}, space_id={data.search_space_id}, user_id={user.id}"
+        )
+
         if data.document_type == DocumentType.EXTENSION:
             for individual_document in data.content:
                 # Convert document to dict for Celery serialization
@@ -372,10 +380,13 @@ async def create_documents(
                     document_dict, data.search_space_id, str(user.id)
                 )
         elif data.document_type == DocumentType.CRAWLED_URL:
+            logger.info(f"Processing {len(data.content)} URLs for crawling")
             for url in data.content:
-                process_crawled_url_task.delay(
+                logger.info(f"Enqueuing crawl task for URL: {url} in space {data.search_space_id}")
+                task = process_crawled_url_task.delay(
                     url, data.search_space_id, str(user.id)
                 )
+                logger.info(f"Enqueued task {task.id} for URL {url}")
         elif data.document_type == DocumentType.YOUTUBE_VIDEO:
 
             for url in data.content:
@@ -386,10 +397,12 @@ async def create_documents(
             raise HTTPException(status_code=400, detail="Invalid document type")
 
         await session.commit()
+        logger.info("Documents processed and tasks enqueued successfully")
         return {"message": "Documents processed successfully"}
     except HTTPException:
         raise
     except Exception as e:
+        logger.error(f"Failed to process documents: {e!s}", exc_info=True)
         await session.rollback()
         raise HTTPException(
             status_code=500, detail=f"Failed to process documents: {e!s}"

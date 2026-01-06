@@ -328,6 +328,7 @@ async def add_crawled_url_document(
     Returns:
         Document object if successful, None if failed
     """
+    logger.info(f"Worker started processing URL: {url} for space {search_space_id}")
     task_logger = TaskLoggingService(session, search_space_id)
 
     # Log task start
@@ -646,11 +647,13 @@ async def add_crawled_url_document(
                 "summary_length": len(summary_content),
             },
         )
+        logger.info(f"Worker successfully processed URL: {url} -> Document ID: {document.id}")
 
         return document
 
     except SQLAlchemyError as db_error:
         await session.rollback()
+        logger.error(f"Database error processing URL {url}: {db_error}")
         await task_logger.log_task_failure(
             log_entry,
             f"Database error while processing URL: {url}",
@@ -660,6 +663,7 @@ async def add_crawled_url_document(
         raise db_error
     except Exception as e:
         await session.rollback()
+        logger.error(f"Worker failed to process URL {url}: {e}", exc_info=True)
         await task_logger.log_task_failure(
             log_entry,
             f"Failed to crawl URL: {url}",
