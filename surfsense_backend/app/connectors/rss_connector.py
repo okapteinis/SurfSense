@@ -120,6 +120,9 @@ class RSSConnector:
 
         while redirect_count < self.max_redirects:
             # Perform the request
+            if not isinstance(current_url, str) or not current_url.startswith(("http://", "https://")):
+                raise ValueError(f"Invalid redirect URL detected: {current_url}")
+
             response = await client.get(current_url, headers=headers, follow_redirects=False)
 
             # If not a redirect, return the response
