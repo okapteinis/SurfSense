@@ -110,9 +110,11 @@ export default function WebpageCrawler() {
 			// Redirect to documents page
 			router.push(`/dashboard/${search_space_id}/documents`);
 		} catch (error: any) {
-			setError(error.message || t("error_generic"));
+			const errorMsg = error.message || t("error_generic");
+			console.error("Crawler submission failed:", error);
+			setError(errorMsg);
 			toast(t("error_toast"), {
-				description: `${t("error_toast_desc")}: ${error.message}`,
+				description: `${t("error_toast_desc")}: ${errorMsg}`,
 			});
 		} finally {
 			setIsSubmitting(false);
